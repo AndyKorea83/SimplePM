@@ -45,13 +45,25 @@ type SidebarProps = {
   userName?: string
 }
 
+const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed'
+
 export function Sidebar({
   activeNavKey = 'gantt',
   activeProjectKey = 'platform',
   userInitials = 'АК',
   userName = 'Алексей К.',
 }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(true)
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(COLLAPSED_STORAGE_KEY) !== 'false',
+  )
+
+  const toggleCollapsed = () => {
+    setCollapsed((value) => {
+      const next = !value
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, String(next))
+      return next
+    })
+  }
 
   return (
     <div
@@ -113,7 +125,7 @@ export function Sidebar({
       <div className="flex flex-col gap-4 w-full shrink-0">
         <button
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
+          onClick={toggleCollapsed}
           className={`flex items-center gap-[10px] h-8 px-2 py-[10px] w-full cursor-pointer ${
             collapsed ? 'justify-center rounded-[16px] size-8' : ''
           }`}
