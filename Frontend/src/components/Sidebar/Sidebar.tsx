@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import homeIcon from '../../assets/icons/home.svg'
 import calendarIcon from '../../assets/icons/calendar.svg'
 import barChartIcon from '../../assets/icons/bar-chart.svg'
@@ -12,24 +12,40 @@ import dotActiveIcon from '../../assets/icons/dot-alt.svg'
 
 type NavKey = 'dashboard' | 'gantt' | 'tasks' | 'team' | 'settings'
 
+type IconSpec = {
+  src: string
+  width: number
+  height: number
+  rotate?: number
+}
+
+// Natural pixel dimensions of each exported Figma icon (node 3:930) — rendering
+// them stretched to a uniform square distorts aspect ratio, so each keeps its own size.
+const NAV_ICONS: Record<NavKey, IconSpec> = {
+  dashboard: { src: homeIcon, width: 17.5, height: 17.5 },
+  gantt: { src: barChartIcon, width: 9.5, height: 13.5, rotate: 90 },
+  tasks: { src: checkIcon, width: 12.5, height: 9 },
+  team: { src: userIcon, width: 11.5, height: 12.5 },
+  settings: { src: settingsIcon, width: 17.5, height: 17.5 },
+}
+
 type NavItem = {
   key: NavKey
   label: string
-  icon: string
 }
+
+const NAV_ITEMS: NavItem[] = [
+  { key: 'dashboard', label: 'Дашборд' },
+  { key: 'gantt', label: 'Диаграмма Ганта' },
+  { key: 'tasks', label: 'Задачи' },
+  { key: 'team', label: 'Команда' },
+  { key: 'settings', label: 'Настройки' },
+]
 
 type ProjectItem = {
   key: string
   name: string
 }
-
-const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Дашборд', icon: homeIcon },
-  { key: 'gantt', label: 'Диаграмма Ганта', icon: barChartIcon },
-  { key: 'tasks', label: 'Задачи', icon: checkIcon },
-  { key: 'team', label: 'Команда', icon: userIcon },
-  { key: 'settings', label: 'Настройки', icon: settingsIcon },
-]
 
 const PROJECT_ITEMS: ProjectItem[] = [
   { key: 'all', name: 'Все проекты' },
@@ -37,6 +53,40 @@ const PROJECT_ITEMS: ProjectItem[] = [
   { key: 'marketing', name: 'Маркетинг кампании' },
   { key: 'redesign', name: 'Редизайн сайта' },
 ]
+
+function Icon({ src, width, height, rotate }: IconSpec) {
+  return (
+    <span className="flex items-center justify-center shrink-0 size-5">
+      <img
+        src={src}
+        alt=""
+        style={{ width, height, transform: rotate ? `rotate(${rotate}deg)` : undefined }}
+      />
+    </span>
+  )
+}
+
+// Always mounted; width/opacity animate in lockstep with the sidebar's own width
+// transition so labels never pop in/out ahead of the container (which caused the jump).
+function Label({
+  collapsed,
+  className,
+  children,
+}: {
+  collapsed: boolean
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <span
+      className={`overflow-hidden whitespace-nowrap leading-[16px] transition-[max-width,opacity] duration-200 ${
+        collapsed ? 'max-w-0 opacity-0' : 'max-w-[160px] opacity-100'
+      } ${className ?? ''}`}
+    >
+      {children}
+    </span>
+  )
+}
 
 type SidebarProps = {
   activeNavKey?: NavKey
@@ -67,17 +117,17 @@ export function Sidebar({
 
   return (
     <div
-      className={`bg-[#111111] h-screen flex flex-col gap-4 py-4 shrink-0 transition-[width] duration-200 ${
-        collapsed ? 'w-[56px] items-center' : 'w-[220px] items-start px-[10px]'
+      className={`bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden transition-[width] duration-200 ${
+        collapsed ? 'w-[56px]' : 'w-[220px]'
       }`}
     >
-      <div className={`flex items-center gap-3 w-full ${collapsed ? 'justify-center' : ''}`}>
+      <div className="flex items-center gap-3 w-full">
         <div className="bg-[#d89425] p-2 rounded-lg shrink-0 flex items-center justify-center">
-          <img src={calendarIcon} alt="" className="size-5" />
+          <img src={calendarIcon} alt="" style={{ width: 18, height: 18 }} />
         </div>
-        {!collapsed && (
-          <p className="font-bold text-sm text-white whitespace-nowrap">GranchPM</p>
-        )}
+        <Label collapsed={collapsed} className="font-bold text-sm text-white">
+          GranchPM
+        </Label>
       </div>
 
       <nav className={`flex flex-col gap-2 w-full ${collapsed ? 'flex-1 min-h-0' : 'shrink-0'}`}>
@@ -87,20 +137,17 @@ export function Sidebar({
             <a
               key={item.key}
               href="#"
-              className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg shrink-0 ${
-                collapsed ? 'justify-center' : 'w-[200px]'
-              } ${isActive ? 'bg-[rgba(216,148,37,0.15)]' : ''}`}
+              className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg w-full ${
+                isActive ? 'bg-[rgba(216,148,37,0.15)]' : ''
+              }`}
             >
-              <img src={item.icon} alt="" className="size-5 shrink-0" />
-              {!collapsed && (
-                <p
-                  className={`text-[13px] text-white whitespace-nowrap ${
-                    isActive ? 'font-semibold' : 'font-normal'
-                  }`}
-                >
-                  {item.label}
-                </p>
-              )}
+              <Icon {...NAV_ICONS[item.key]} />
+              <Label
+                collapsed={collapsed}
+                className={`text-[13px] text-white ${isActive ? 'font-semibold' : 'font-normal'}`}
+              >
+                {item.label}
+              </Label>
             </a>
           )
         })}
@@ -108,15 +155,18 @@ export function Sidebar({
 
       {!collapsed && (
         <div className="flex flex-col gap-px w-full flex-1 min-h-0">
-          <p className="text-[10px] text-[#80808c]">Проекты</p>
+          <p className="text-[10px] leading-[12px] text-[#80808c]">Проекты</p>
           {PROJECT_ITEMS.map((project) => (
-            <div key={project.key} className="flex items-center gap-2 px-2 py-[6px] w-[200px]">
+            <div key={project.key} className="flex items-center gap-2 px-2 py-[6px] w-full">
               <img
                 src={project.key === activeProjectKey ? dotActiveIcon : dotIcon}
                 alt=""
-                className="size-[6px] shrink-0"
+                className="shrink-0"
+                style={{ width: 6, height: 6 }}
               />
-              <p className="text-[13px] text-[#d9d9e5] whitespace-nowrap">{project.name}</p>
+              <p className="text-[13px] leading-[16px] text-[#d9d9e5] whitespace-nowrap overflow-hidden text-ellipsis">
+                {project.name}
+              </p>
             </div>
           ))}
         </div>
@@ -126,29 +176,27 @@ export function Sidebar({
         <button
           type="button"
           onClick={toggleCollapsed}
-          className={`flex items-center gap-[10px] h-8 px-2 py-[10px] w-full cursor-pointer ${
-            collapsed ? 'justify-center rounded-[16px] size-8' : ''
-          }`}
+          className="flex items-center gap-[10px] h-8 px-2 w-full cursor-pointer"
         >
-          <img
+          <Icon
             src={collapsed ? chevronRightIcon : collapseIcon}
-            alt=""
-            className="size-5 shrink-0"
+            width={collapsed ? 14 : 20}
+            height={collapsed ? 14 : 20}
           />
-          {!collapsed && <p className="text-[13px] text-[#80808c] text-left">Свернуть</p>}
+          <Label collapsed={collapsed} className="text-[13px] text-[#80808c]">
+            Свернуть
+          </Label>
         </button>
 
-        <div
-          className={`flex items-center gap-[10px] pt-4 w-full border-t border-[#27272a] ${
-            collapsed ? 'justify-center' : 'px-2'
-          }`}
-        >
+        <div className="flex items-center gap-[10px] pt-4 px-2 w-full border-t border-[#27272a]">
           <div className="bg-[#d89425] rounded-[5px] size-5 flex items-center justify-center shrink-0">
-            <p className="font-medium text-[9px] text-white whitespace-nowrap">{userInitials}</p>
+            <p className="font-medium text-[9px] leading-[11px] text-white whitespace-nowrap">
+              {userInitials}
+            </p>
           </div>
-          {!collapsed && (
-            <p className="font-medium text-[13px] text-white whitespace-nowrap">{userName}</p>
-          )}
+          <Label collapsed={collapsed} className="font-medium text-[13px] text-white">
+            {userName}
+          </Label>
         </div>
       </div>
     </div>
