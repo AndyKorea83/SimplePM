@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { NAV_ROUTES, type NavKey } from '../../navigation'
 import homeIcon from '../../assets/icons/home.svg'
 import calendarIcon from '../../assets/icons/calendar.svg'
 import barChartIcon from '../../assets/icons/bar-chart.svg'
@@ -9,8 +11,6 @@ import chevronRightIcon from '../../assets/icons/chevron-right.svg'
 import collapseIcon from '../../assets/icons/collapse.svg'
 import dotIcon from '../../assets/icons/dot.svg'
 import dotActiveIcon from '../../assets/icons/dot-alt.svg'
-
-type NavKey = 'dashboard' | 'gantt' | 'tasks' | 'team' | 'settings'
 
 type IconSpec = {
   src: string
@@ -28,19 +28,6 @@ const NAV_ICONS: Record<NavKey, IconSpec> = {
   team: { src: userIcon, width: 11.5, height: 12.5 },
   settings: { src: settingsIcon, width: 17.5, height: 17.5 },
 }
-
-type NavItem = {
-  key: NavKey
-  label: string
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Дашборд' },
-  { key: 'gantt', label: 'Диаграмма Ганта' },
-  { key: 'tasks', label: 'Задачи' },
-  { key: 'team', label: 'Команда' },
-  { key: 'settings', label: 'Настройки' },
-]
 
 type ProjectItem = {
   key: string
@@ -89,8 +76,7 @@ function Label({
 }
 
 type SidebarProps = {
-  activeNavKey?: NavKey
-  activeProjectKey?: string
+  defaultActiveProjectKey?: string
   userInitials?: string
   userName?: string
 }
@@ -98,14 +84,15 @@ type SidebarProps = {
 const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed'
 
 export function Sidebar({
-  activeNavKey = 'gantt',
-  activeProjectKey = 'platform',
+  defaultActiveProjectKey = 'platform',
   userInitials = 'АК',
   userName = 'Алексей К.',
 }: SidebarProps) {
+  const location = useLocation()
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem(COLLAPSED_STORAGE_KEY) !== 'false',
   )
+  const [activeProjectKey, setActiveProjectKey] = useState(defaultActiveProjectKey)
 
   const toggleCollapsed = () => {
     setCollapsed((value) => {
@@ -131,24 +118,24 @@ export function Sidebar({
       </div>
 
       <nav className={`flex flex-col gap-2 w-full ${collapsed ? 'flex-1 min-h-0' : 'shrink-0'}`}>
-        {NAV_ITEMS.map((item) => {
-          const isActive = item.key === activeNavKey
+        {NAV_ROUTES.map((route) => {
+          const isActive = location.pathname === route.path
           return (
-            <a
-              key={item.key}
-              href="#"
+            <Link
+              key={route.key}
+              to={route.path}
               className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg w-full ${
                 isActive ? 'bg-[rgba(216,148,37,0.15)]' : ''
               }`}
             >
-              <Icon {...NAV_ICONS[item.key]} />
+              <Icon {...NAV_ICONS[route.key]} />
               <Label
                 collapsed={collapsed}
                 className={`text-[13px] text-white ${isActive ? 'font-semibold' : 'font-normal'}`}
               >
-                {item.label}
+                {route.label}
               </Label>
-            </a>
+            </Link>
           )
         })}
       </nav>
@@ -157,7 +144,12 @@ export function Sidebar({
         <div className="flex flex-col gap-px w-full flex-1 min-h-0">
           <p className="text-[10px] leading-[12px] text-[#80808c]">Проекты</p>
           {PROJECT_ITEMS.map((project) => (
-            <div key={project.key} className="flex items-center gap-2 px-2 py-[6px] w-full">
+            <button
+              key={project.key}
+              type="button"
+              onClick={() => setActiveProjectKey(project.key)}
+              className="flex items-center gap-2 px-2 py-[6px] w-full cursor-pointer"
+            >
               <img
                 src={project.key === activeProjectKey ? dotActiveIcon : dotIcon}
                 alt=""
@@ -167,7 +159,7 @@ export function Sidebar({
               <p className="text-[13px] leading-[16px] text-[#d9d9e5] whitespace-nowrap overflow-hidden text-ellipsis">
                 {project.name}
               </p>
-            </div>
+            </button>
           ))}
         </div>
       )}
