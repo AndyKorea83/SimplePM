@@ -22,6 +22,28 @@ export function buildTaskTree(tasks: TaskDTO[]): GanttTaskNode[] {
   return roots
 }
 
+// Prunes the tree to leaves matching `predicate` plus every ancestor needed
+// to reach them, so filtered-out branches disappear but surviving tasks
+// keep their stage/group context. A summary node survives only if at least
+// one descendant does; predicate only applies to leaves.
+export function filterTaskTree(nodes: GanttTaskNode[], predicate: (leaf: GanttTaskNode) => boolean): GanttTaskNode[] {
+  const result: GanttTaskNode[] = []
+
+  for (const node of nodes) {
+    if (node.children.length === 0) {
+      if (predicate(node)) result.push(node)
+      continue
+    }
+
+    const children = filterTaskTree(node.children, predicate)
+    if (children.length > 0) {
+      result.push({ ...node, children })
+    }
+  }
+
+  return result
+}
+
 export function flattenVisible(
   nodes: GanttTaskNode[],
   collapsed: ReadonlySet<number>,
