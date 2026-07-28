@@ -122,10 +122,13 @@ export function GanttWorkspace({
     <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto bg-white">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
-            horizontally. z-40 keeps it above every right-pane layer
-            (backgrounds/gridlines/today-line/bars top out at z-30), so
-            scrolled-under bars never paint over the frozen columns. */}
-        <div className="sticky left-0 z-40 flex shrink-0 flex-col bg-white" style={{ width: LEFT_PANE_WIDTH }}>
+            horizontally. z-50 keeps it above every right-pane layer,
+            including that pane's own sticky header (z-40), so scrolled-under
+            bars/header cells never paint over the frozen columns. */}
+        <div
+          className="sticky left-0 z-50 flex shrink-0 flex-col border-r border-[#e2e8f0] bg-white"
+          style={{ width: LEFT_PANE_WIDTH }}
+        >
           <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
             {monthRowHeight > 0 && <div className="shrink-0" style={{ height: monthRowHeight }} />}
             <div
@@ -157,7 +160,12 @@ export function GanttWorkspace({
 
         {/* RIGHT PANE: timeline grid, bars, today-line */}
         <div className="relative flex-1 shrink-0" style={{ width: timelineWidth }}>
-          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
+          {/* z-40: above every row layer below (backgrounds/gridlines/
+              today-line/bars top out at z-30) so rows scrolling up never
+              paint over the header's opaque background; still under the
+              left pane's z-50 so it correctly hides under the frozen
+              columns during horizontal scroll. */}
+          <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
             {monthGroups.length > 0 && (
               <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: monthRowHeight }}>
                 {monthGroups.map((group) => (
