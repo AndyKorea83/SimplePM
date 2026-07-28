@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { SectionPlaceholder } from './components/SectionPlaceholder/SectionPlaceholder'
+import { GanttPage } from './components/Gantt/GanttPage'
 import { NAV_ROUTES } from './navigation'
 
 function App() {
@@ -14,7 +15,7 @@ function App() {
             <Route
               key={route.key}
               path={route.path}
-              element={<SectionPlaceholder title={route.label} />}
+              element={route.key === 'gantt' ? <GanttPage /> : <SectionPlaceholder title={route.label} />}
             />
           ))}
         </Routes>
