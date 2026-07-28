@@ -66,8 +66,11 @@ export function GanttWorkspace({
   return (
     <div className="flex min-h-0 flex-1 overflow-auto bg-white">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
-        {/* LEFT PANE: sticky so it stays put while the right pane scrolls horizontally */}
-        <div className="sticky left-0 z-20 flex shrink-0 flex-col bg-white" style={{ width: LEFT_PANE_WIDTH }}>
+        {/* LEFT PANE: sticky so it stays put while the right pane scrolls
+            horizontally. z-40 keeps it above every right-pane layer
+            (backgrounds/gridlines/today-line/bars top out at z-30), so
+            scrolled-under bars never paint over the frozen columns. */}
+        <div className="sticky left-0 z-40 flex shrink-0 flex-col bg-white" style={{ width: LEFT_PANE_WIDTH }}>
           <div
             className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] bg-white px-4 text-[12px] font-semibold text-[#94a3b8]"
             style={{ height: metrics.headerHeight }}
