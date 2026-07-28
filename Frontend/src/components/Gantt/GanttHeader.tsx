@@ -82,6 +82,33 @@ function DensitySwitcher({
   )
 }
 
+type TeamMember = { uid: number; name: string }
+
+function AssigneeFilter({
+  teamMembers,
+  value,
+  onChange,
+}: {
+  teamMembers: TeamMember[]
+  value: number | null
+  onChange: (uid: number | null) => void
+}) {
+  return (
+    <select
+      value={value ?? 'all'}
+      onChange={(event) => onChange(event.target.value === 'all' ? null : Number(event.target.value))}
+      className="cursor-pointer rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] font-medium text-[#0f172a]"
+    >
+      <option value="all">Все исполнители</option>
+      {teamMembers.map((member) => (
+        <option key={member.uid} value={member.uid}>
+          {member.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 type GanttHeaderProps = {
   title: string
   dateRangeLabel: string
@@ -89,6 +116,9 @@ type GanttHeaderProps = {
   onScaleChange: (scale: GanttScale) => void
   density: GanttDensity
   onDensityChange: (density: GanttDensity) => void
+  teamMembers: TeamMember[]
+  assigneeFilter: number | null
+  onAssigneeFilterChange: (uid: number | null) => void
 }
 
 export function GanttHeader({
@@ -98,6 +128,9 @@ export function GanttHeader({
   onScaleChange,
   density,
   onDensityChange,
+  teamMembers,
+  assigneeFilter,
+  onAssigneeFilterChange,
 }: GanttHeaderProps) {
   return (
     <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[#e2e8f0] bg-white px-4">
@@ -110,6 +143,7 @@ export function GanttHeader({
           <img src={calendarIcon} alt="" style={{ width: 14, height: 14 }} />
           <p className="text-[13px] font-medium text-[#0f172a]">{dateRangeLabel}</p>
         </div>
+        <AssigneeFilter teamMembers={teamMembers} value={assigneeFilter} onChange={onAssigneeFilterChange} />
         <ScaleSelector scale={scale} onChange={onScaleChange} />
         <DensitySwitcher density={density} onChange={onDensityChange} />
         <div className="flex items-center gap-[6px] rounded-lg border border-[#e2e8f0] bg-white px-3 py-2">
