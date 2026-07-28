@@ -39,5 +39,10 @@ type Task struct {
 	IsMilestone     bool
 	IsSummary       bool
 
+	// IsBlocked has no MSPDI source field, so the parser always leaves it
+	// false; it exists as a seam for a future manual or Gitea-label-backed
+	// override.
+	IsBlocked bool
+
 	Dependencies []Dependency
 }

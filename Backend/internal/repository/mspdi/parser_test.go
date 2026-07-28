@@ -40,6 +40,9 @@ func TestParse(t *testing.T) {
 	if milestone.Duration != 0 {
 		t.Errorf("milestone Duration = %v, want 0", milestone.Duration)
 	}
+	if milestone.IsBlocked {
+		t.Error("milestone IsBlocked = true, want false (MSPDI has no source field for it)")
+	}
 
 	summary := project.Tasks[1]
 	if !summary.IsSummary {
