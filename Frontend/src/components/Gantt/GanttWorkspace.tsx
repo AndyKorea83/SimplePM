@@ -30,6 +30,8 @@ type GanttWorkspaceProps = {
   rangeEnd: Date
   today: Date
   assigneesByTaskUid: Map<number, string>
+  onEditTask: (uid: number) => void
+  onFinishChange: (uid: number, isoDate: string) => void
 }
 
 export function GanttWorkspace({
@@ -42,6 +44,8 @@ export function GanttWorkspace({
   rangeEnd,
   today,
   assigneesByTaskUid,
+  onEditTask,
+  onFinishChange,
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
@@ -145,6 +149,8 @@ export function GanttWorkspace({
               onToggle={() => onToggleCollapse(node.uid)}
               status={deriveStatus(node, today)}
               assigneeNames={assigneesByTaskUid.get(node.uid) ?? ''}
+              onEdit={() => onEditTask(node.uid)}
+              onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
             />
           ))}
         </div>
