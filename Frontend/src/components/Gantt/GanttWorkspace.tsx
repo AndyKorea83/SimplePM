@@ -1,7 +1,7 @@
 import { buildDayColumns, buildWeekColumns, columnWidth, dateToX } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { flattenVisible } from './buildTaskTree'
-import { GanttRowLeft, GanttRowTimeline } from './GanttRow'
+import { GanttRowBar, GanttRowLeft, GanttRowTimelineBackground, rowHeightOf } from './GanttRow'
 import { deriveStatus } from './status'
 import type { GanttDensity, GanttTaskNode } from './types'
 
@@ -39,8 +39,20 @@ export function GanttWorkspace({
   const columns =
     scale === 'day' ? buildDayColumns(rangeStart, rangeEnd, today) : buildWeekColumns(rangeStart, rangeEnd)
   const timelineWidth = columns.length * width
-  const todayX = dateToX(today, rangeStart, scale)
   const showTodayLine = today >= rangeStart && today <= rangeEnd
+  // Center the line in whichever day/week column contains today, rather
+  // than sitting on its left edge.
+  const todayColumnStart = Math.floor(dateToX(today, rangeStart, scale) / width) * width
+  const todayLineX = todayColumnStart + width / 2
+
+  const rowTops: number[] = []
+  {
+    let cursor = 0
+    for (const node of visible) {
+      rowTops.push(cursor)
+      cursor += rowHeightOf(node, density)
+    }
+  }
 
   const childrenByUid = new Map<number, GanttTaskNode[]>()
   const collectChildren = (nodes: GanttTaskNode[]) => {
@@ -101,24 +113,43 @@ export function GanttWorkspace({
           </div>
 
           <div className="relative">
-            {columns.map((_, index) => (
+            {/* Layer 1: group/stage row backgrounds — normal flow, defines
+                the stack's total height for layers 2-4 below. */}
+            <div className="relative z-0">
+              {visible.map((node) => (
+                <GanttRowTimelineBackground key={node.uid} node={node} density={density} />
+              ))}
+            </div>
+
+            {/* Layer 2: day/week gridlines */}
+            <div className="absolute inset-0 z-10">
+              {columns.map((_, index) => (
+                <div key={index} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: index * width }} />
+              ))}
+            </div>
+
+            {/* Layer 3: today line — dashed, centered in its column */}
+            {showTodayLine && (
               <div
-                key={index}
-                className="absolute inset-y-0 w-px bg-[#f1f5f9]"
-                style={{ left: index * width }}
+                className="absolute inset-y-0 z-20"
+                style={{ left: todayLineX, borderLeft: '1.5px dashed #ef4444' }}
               />
-            ))}
-            {showTodayLine && <div className="absolute inset-y-0 w-[1.5px] bg-[#ef4444]" style={{ left: todayX }} />}
-            {visible.map((node) => (
-              <GanttRowTimeline
-                key={node.uid}
-                node={node}
-                density={density}
-                scale={scale}
-                rangeStart={rangeStart}
-                status={deriveStatus(node, today)}
-              />
-            ))}
+            )}
+
+            {/* Layer 4: task/group bars, on top of everything */}
+            <div className="absolute inset-0 z-30">
+              {visible.map((node, index) => (
+                <GanttRowBar
+                  key={node.uid}
+                  node={node}
+                  density={density}
+                  scale={scale}
+                  rangeStart={rangeStart}
+                  status={deriveStatus(node, today)}
+                  top={rowTops[index]}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

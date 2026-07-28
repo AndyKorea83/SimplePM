@@ -95,17 +95,38 @@ export function GanttRowLeft({
   )
 }
 
-type GanttRowTimelineProps = {
+export function rowHeightOf(node: GanttTaskNode, density: GanttDensity): number {
+  const metrics = DENSITY_METRICS[density]
+  return node.isSummary ? metrics.groupRowHeight : metrics.rowHeight
+}
+
+// Bottom layer: group/stage background band + row separator, in normal flow
+// so the row stack's total height also defines the height of the gridline/
+// today-line/bar overlay layers stacked on top of it.
+export function GanttRowTimelineBackground({ node, density }: { node: GanttTaskNode; density: GanttDensity }) {
+  const rowBg = node.isSummary ? (node.depth === 0 ? '#eef2ff' : '#f8fafc') : undefined
+  return (
+    <div
+      className="shrink-0 border-b border-[#f1f5f9]"
+      style={{ height: rowHeightOf(node, density), backgroundColor: rowBg }}
+    />
+  )
+}
+
+type GanttRowBarProps = {
   node: GanttTaskNode
   density: GanttDensity
   scale: GanttScale
   rangeStart: Date
   status: TaskStatus
+  top: number
 }
 
-export function GanttRowTimeline({ node, density, scale, rangeStart, status }: GanttRowTimelineProps) {
+// Top layer: the task/group bar itself, absolutely positioned at this row's
+// cumulative offset within the shared bar-overlay layer.
+export function GanttRowBar({ node, density, scale, rangeStart, status, top }: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
-  const height = node.isSummary ? metrics.groupRowHeight : metrics.rowHeight
+  const height = rowHeightOf(node, density)
   const left = dateToX(new Date(node.start), rangeStart, scale)
   // A group/stage row spans its children's date range regardless of its own
   // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
@@ -114,10 +135,8 @@ export function GanttRowTimeline({ node, density, scale, rangeStart, status }: G
   const isPointInTime = node.isMilestone && !node.isSummary
   const width = isPointInTime ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
 
-  const rowBg = node.isSummary ? (node.depth === 0 ? '#eef2ff' : '#f8fafc') : undefined
-
   return (
-    <div className="relative shrink-0 border-b border-[#f1f5f9]" style={{ height, backgroundColor: rowBg }}>
+    <div className="absolute left-0 w-full" style={{ top, height }}>
       {node.isSummary ? (
         <div
           className="absolute top-1/2 rounded-[6px]"
