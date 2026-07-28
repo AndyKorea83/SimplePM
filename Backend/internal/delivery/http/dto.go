@@ -33,6 +33,7 @@ type taskDTO struct {
 	PercentComplete int             `json:"percentComplete"`
 	IsMilestone     bool            `json:"isMilestone"`
 	IsSummary       bool            `json:"isSummary"`
+	IsBlocked       bool            `json:"isBlocked"`
 	Dependencies    []dependencyDTO `json:"dependencies,omitempty"`
 }
 
@@ -118,6 +119,7 @@ func newTaskDTO(t entity.Task) taskDTO {
 		PercentComplete: t.PercentComplete,
 		IsMilestone:     t.IsMilestone,
 		IsSummary:       t.IsSummary,
+		IsBlocked:       t.IsBlocked,
 		Dependencies:    deps,
 	}
 }
