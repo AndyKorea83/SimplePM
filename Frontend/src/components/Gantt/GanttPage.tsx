@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchProject } from './api'
-import { buildTaskTree, filterTaskTree } from './buildTaskTree'
+import { createTask, deleteTask, fetchProject, updateTask } from './api'
+import { buildTaskTree, filterTaskTree, flattenVisible } from './buildTaskTree'
 import { formatDateRange } from './dateGrid'
 import { BottomStatusBar } from './BottomStatusBar'
 import { GanttHeader } from './GanttHeader'
 import { GanttWorkspace } from './GanttWorkspace'
 import { deriveStatus, type TaskStatus } from './status'
+import { TaskForm, type TaskFormValues } from './TaskForm'
 import type { GanttDensity, GanttScale, ProjectDTO, TaskDTO } from './types'
 
 // MSPDI's sentinel for "no resource assigned"; the placeholder Resource
@@ -45,6 +46,7 @@ export function GanttPage() {
   const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set())
   const [activeStatuses, setActiveStatuses] = useState<ReadonlySet<TaskStatus>>(() => new Set())
   const [assigneeFilter, setAssigneeFilter] = useState<number | null>(null)
+  const [formState, setFormState] = useState<{ mode: 'create' | 'edit'; task?: TaskDTO } | null>(null)
 
   const setScale = (next: GanttScale) => {
     localStorage.setItem(SCALE_STORAGE_KEY, next)
@@ -55,10 +57,10 @@ export function GanttPage() {
     setDensityState(next)
   }
 
+  const refetch = () => fetchProject().then(setProject).catch((err: Error) => setError(err.message))
+
   useEffect(() => {
-    fetchProject()
-      .then(setProject)
-      .catch((err: Error) => setError(err.message))
+    refetch()
   }, [])
 
   const today = useMemo(() => new Date(), [])
@@ -142,6 +144,81 @@ export function GanttPage() {
     })
   }
 
+  const resourceOptions = useMemo(
+    () => (project ? project.resources.filter((r) => r.uid !== 0).map((r) => ({ uid: r.uid, name: r.name })) : []),
+    [project],
+  )
+
+  // Every task in document order, indented by depth, minus the task being
+  // edited and its own descendants (a task can't become its own ancestor).
+  const parentOptions = useMemo(() => {
+    const flat = flattenVisible(roots, new Set())
+    const editingUid = formState?.mode === 'edit' ? formState.task?.uid : undefined
+    let filtered = flat
+    if (editingUid !== undefined) {
+      const index = flat.findIndex((n) => n.uid === editingUid)
+      if (index !== -1) {
+        const depth = flat[index].depth
+        let end = index + 1
+        while (end < flat.length && flat[end].depth > depth) end++
+        filtered = [...flat.slice(0, index), ...flat.slice(end)]
+      }
+    }
+    return filtered.map((n) => ({ uid: n.uid, label: '  '.repeat(n.depth) + n.name }))
+  }, [roots, formState])
+
+  const openCreateForm = () => setFormState({ mode: 'create' })
+  const openEditForm = (uid: number) => {
+    const task = project?.tasks.find((t) => t.uid === uid)
+    if (task) setFormState({ mode: 'edit', task })
+  }
+  const closeForm = () => setFormState(null)
+
+  const handleFormSubmit = async (values: TaskFormValues) => {
+    const start = new Date(values.start).toISOString()
+    const finish = new Date(values.finish).toISOString()
+
+    if (formState?.mode === 'create') {
+      await createTask({
+        name: values.name,
+        parentUid: values.parentUid ?? undefined,
+        start,
+        finish,
+        percentComplete: values.percentComplete,
+        isMilestone: values.isMilestone,
+        isBlocked: values.isBlocked,
+        assigneeResourceUids: values.assigneeResourceUids,
+      })
+    } else if (formState?.task) {
+      await updateTask(formState.task.uid, {
+        name: values.name,
+        start,
+        finish,
+        percentComplete: values.percentComplete,
+        isBlocked: values.isBlocked,
+        assigneeResourceUids: values.assigneeResourceUids,
+      })
+    }
+    await refetch()
+    setFormState(null)
+  }
+
+  const handleDeleteTask = async () => {
+    if (formState?.mode !== 'edit' || !formState.task) return
+    await deleteTask(formState.task.uid)
+    await refetch()
+    setFormState(null)
+  }
+
+  const handleFinishChange = async (uid: number, isoDate: string) => {
+    try {
+      await updateTask(uid, { finish: new Date(isoDate).toISOString() })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (error) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-white">
@@ -161,6 +238,36 @@ export function GanttPage() {
   const rangeStart = new Date(project.startDate)
   const rangeEnd = new Date(project.finishDate)
 
+  const formInitialValues: TaskFormValues | null =
+    formState === null
+      ? null
+      : formState.mode === 'edit' && formState.task
+        ? {
+            name: formState.task.name,
+            parentUid: formState.task.parentUid ?? null,
+            start: formState.task.start.slice(0, 10),
+            finish: formState.task.finish.slice(0, 10),
+            percentComplete: formState.task.percentComplete,
+            isMilestone: formState.task.isMilestone,
+            isBlocked: formState.task.isBlocked,
+            assigneeResourceUids: [...(resourceUidsByTaskUid.get(formState.task.uid) ?? [])],
+          }
+        : {
+            name: '',
+            parentUid: null,
+            start: today.toISOString().slice(0, 10),
+            finish: today.toISOString().slice(0, 10),
+            percentComplete: 0,
+            isMilestone: false,
+            isBlocked: false,
+            assigneeResourceUids: [],
+          }
+
+  const formHasChildren =
+    formState?.mode === 'edit' && formState.task
+      ? project.tasks.some((t) => t.parentUid === formState.task!.uid)
+      : false
+
   return (
     <div className="flex h-full w-full flex-col bg-white">
       <GanttHeader
@@ -173,6 +280,7 @@ export function GanttPage() {
         teamMembers={teamMembers}
         assigneeFilter={assigneeFilter}
         onAssigneeFilterChange={setAssigneeFilter}
+        onAddTask={openCreateForm}
       />
       {scale === 'month' ? (
         <div className="flex flex-1 items-center justify-center bg-white">
@@ -189,6 +297,8 @@ export function GanttPage() {
           rangeEnd={rangeEnd}
           today={today}
           assigneesByTaskUid={assigneesByTaskUid}
+          onEditTask={openEditForm}
+          onFinishChange={handleFinishChange}
         />
       )}
       <BottomStatusBar
@@ -199,6 +309,18 @@ export function GanttPage() {
         activeStatuses={activeStatuses}
         onToggleStatus={toggleStatusFilter}
       />
+      {formState && formInitialValues && (
+        <TaskForm
+          mode={formState.mode}
+          initialValues={formInitialValues}
+          parentOptions={parentOptions}
+          resourceOptions={resourceOptions}
+          hasChildren={formHasChildren}
+          onSubmit={handleFormSubmit}
+          onDelete={formState.mode === 'edit' ? handleDeleteTask : undefined}
+          onClose={closeForm}
+        />
+      )}
     </div>
   )
 }

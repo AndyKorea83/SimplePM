@@ -119,6 +119,7 @@ type GanttHeaderProps = {
   teamMembers: TeamMember[]
   assigneeFilter: number | null
   onAssigneeFilterChange: (uid: number | null) => void
+  onAddTask: () => void
 }
 
 export function GanttHeader({
@@ -131,6 +132,7 @@ export function GanttHeader({
   teamMembers,
   assigneeFilter,
   onAssigneeFilterChange,
+  onAddTask,
 }: GanttHeaderProps) {
   return (
     <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[#e2e8f0] bg-white px-4">
@@ -150,6 +152,13 @@ export function GanttHeader({
           <img src={settingsIcon} alt="" style={{ width: 14, height: 14 }} />
           <p className="text-[13px] font-medium text-[#475569]">Настройки</p>
         </div>
+        <button
+          type="button"
+          onClick={onAddTask}
+          className="cursor-pointer rounded-lg bg-[#4078d9] px-3 py-2 text-[13px] font-medium text-white"
+        >
+          + Задача
+        </button>
       </div>
     </div>
   )

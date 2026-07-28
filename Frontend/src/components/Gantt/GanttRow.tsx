@@ -42,6 +42,8 @@ type GanttRowLeftProps = {
   onToggle: () => void
   status: TaskStatus
   assigneeNames: string
+  onEdit: () => void
+  onFinishChange: (isoDate: string) => void
 }
 
 export function GanttRowLeft({
@@ -52,6 +54,8 @@ export function GanttRowLeft({
   onToggle,
   status,
   assigneeNames,
+  onEdit,
+  onFinishChange,
 }: GanttRowLeftProps) {
   const metrics = DENSITY_METRICS[density]
 
@@ -64,9 +68,13 @@ export function GanttRowLeft({
       >
         <div className="flex min-w-0 flex-1 items-center gap-2" style={{ paddingLeft: 13 + node.depth * 20 }}>
           {hasChildren && <ChevronToggle collapsed={collapsed} onToggle={onToggle} />}
-          <p className={`truncate text-[13px] text-[#374151] ${isStage ? 'font-bold' : 'font-semibold'}`}>
+          <button
+            type="button"
+            onClick={onEdit}
+            className={`cursor-pointer truncate text-left text-[13px] text-[#374151] hover:underline ${isStage ? 'font-bold' : 'font-semibold'}`}
+          >
             {node.name}
-          </p>
+          </button>
         </div>
         <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
         <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.finish)}</p>
@@ -83,14 +91,26 @@ export function GanttRowLeft({
     >
       <div className="flex min-w-0 flex-1 items-center gap-2" style={{ paddingLeft: 16 + node.depth * 20 }}>
         <StatusSquare status={status} />
-        <p className="truncate text-[13px] font-medium text-[#0f172a]">{node.name}</p>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="cursor-pointer truncate text-left text-[13px] font-medium text-[#0f172a] hover:underline"
+        >
+          {node.name}
+        </button>
       </div>
       <p className="w-[120px] shrink-0 truncate text-[12px] text-[#475569]">{assigneeNames}</p>
       <p className="w-[60px] shrink-0 text-center text-[12px] font-semibold text-[#475569]">
         {effortDays > 0 ? `${effortDays}д` : ''}
       </p>
       <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
-      <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.finish)}</p>
+      <input
+        type="date"
+        value={node.finish.slice(0, 10)}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onFinishChange(e.target.value)}
+        className="w-[70px] shrink-0 cursor-pointer rounded border border-transparent text-center text-[12px] text-[#475469] hover:border-[#e2e8f0]"
+      />
     </div>
   )
 }

@@ -19,7 +19,8 @@ func NewRouter(projectService usecase.ProjectService) http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		// Dev frontend runs on its own Vite port; allow it during stage 1.
 		AllowedOrigins: []string{"http://localhost:*"},
-		AllowedMethods: []string{http.MethodGet, http.MethodOptions},
+		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowedHeaders: []string{"Content-Type"},
 	}))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -27,8 +28,14 @@ func NewRouter(projectService usecase.ProjectService) http.Handler {
 	})
 
 	projectHandler := NewProjectHandler(projectService)
+	taskHandler := NewTaskHandler(projectService)
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/project", projectHandler.GetProject)
+		r.Route("/tasks", func(r chi.Router) {
+			r.Post("/", taskHandler.CreateTask)
+			r.Patch("/{uid}", taskHandler.UpdateTask)
+			r.Delete("/{uid}", taskHandler.DeleteTask)
+		})
 	})
 
 	return r
