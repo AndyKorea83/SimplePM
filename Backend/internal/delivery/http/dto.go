@@ -1,0 +1,130 @@
+package http
+
+import (
+	"time"
+
+	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
+)
+
+// The DTOs below are the HTTP API's own view of project data — kept
+// separate from entity.* so the domain model never carries JSON tags or
+// presentation choices (e.g. hours instead of time.Duration).
+
+type projectDTO struct {
+	Name        string          `json:"name"`
+	Title       string          `json:"title"`
+	StartDate   string          `json:"startDate"`
+	FinishDate  string          `json:"finishDate"`
+	Tasks       []taskDTO       `json:"tasks"`
+	Resources   []resourceDTO   `json:"resources"`
+	Assignments []assignmentDTO `json:"assignments"`
+}
+
+type taskDTO struct {
+	UID             int             `json:"uid"`
+	ID              int             `json:"id"`
+	Name            string          `json:"name"`
+	WBS             string          `json:"wbs"`
+	ParentUID       *int            `json:"parentUid,omitempty"`
+	OutlineLevel    int             `json:"outlineLevel"`
+	Start           string          `json:"start"`
+	Finish          string          `json:"finish"`
+	DurationHours   float64         `json:"durationHours"`
+	PercentComplete int             `json:"percentComplete"`
+	IsMilestone     bool            `json:"isMilestone"`
+	IsSummary       bool            `json:"isSummary"`
+	Dependencies    []dependencyDTO `json:"dependencies,omitempty"`
+}
+
+type dependencyDTO struct {
+	PredecessorUID int `json:"predecessorUid"`
+	Type           int `json:"type"`
+}
+
+type resourceDTO struct {
+	UID      int    `json:"uid"`
+	Name     string `json:"name"`
+	Initials string `json:"initials,omitempty"`
+	Group    string `json:"group,omitempty"`
+	Email    string `json:"email,omitempty"`
+}
+
+type assignmentDTO struct {
+	UID         int     `json:"uid"`
+	TaskUID     int     `json:"taskUid"`
+	ResourceUID int     `json:"resourceUid"`
+	Units       float64 `json:"units"`
+	WorkHours   float64 `json:"workHours"`
+}
+
+func newProjectDTO(p *entity.Project) projectDTO {
+	tasks := make([]taskDTO, 0, len(p.Tasks))
+	for _, t := range p.Tasks {
+		tasks = append(tasks, newTaskDTO(t))
+	}
+
+	resources := make([]resourceDTO, 0, len(p.Resources))
+	for _, r := range p.Resources {
+		resources = append(resources, resourceDTO{
+			UID:      r.UID,
+			Name:     r.Name,
+			Initials: r.Initials,
+			Group:    r.Group,
+			Email:    r.Email,
+		})
+	}
+
+	assignments := make([]assignmentDTO, 0, len(p.Assignments))
+	for _, a := range p.Assignments {
+		assignments = append(assignments, assignmentDTO{
+			UID:         a.UID,
+			TaskUID:     a.TaskUID,
+			ResourceUID: a.ResourceUID,
+			Units:       a.Units,
+			WorkHours:   a.Work.Hours(),
+		})
+	}
+
+	return projectDTO{
+		Name:        p.Name,
+		Title:       p.Title,
+		StartDate:   formatTime(p.StartDate),
+		FinishDate:  formatTime(p.FinishDate),
+		Tasks:       tasks,
+		Resources:   resources,
+		Assignments: assignments,
+	}
+}
+
+func newTaskDTO(t entity.Task) taskDTO {
+	deps := make([]dependencyDTO, 0, len(t.Dependencies))
+	for _, d := range t.Dependencies {
+		deps = append(deps, dependencyDTO{
+			PredecessorUID: d.PredecessorUID,
+			Type:           int(d.Type),
+		})
+	}
+
+	return taskDTO{
+		UID:             t.UID,
+		ID:              t.ID,
+		Name:            t.Name,
+		WBS:             t.WBS,
+		ParentUID:       t.ParentUID,
+		OutlineLevel:    t.OutlineLevel,
+		Start:           formatTime(t.Start),
+		Finish:          formatTime(t.Finish),
+		DurationHours:   t.Duration.Hours(),
+		PercentComplete: t.PercentComplete,
+		IsMilestone:     t.IsMilestone,
+		IsSummary:       t.IsSummary,
+		Dependencies:    deps,
+	}
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
