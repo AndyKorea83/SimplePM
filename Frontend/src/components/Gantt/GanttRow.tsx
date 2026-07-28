@@ -107,7 +107,12 @@ export function GanttRowTimeline({ node, density, scale, rangeStart, status }: G
   const metrics = DENSITY_METRICS[density]
   const height = node.isSummary ? metrics.groupRowHeight : metrics.rowHeight
   const left = dateToX(new Date(node.start), rangeStart, scale)
-  const width = node.isMilestone ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
+  // A group/stage row spans its children's date range regardless of its own
+  // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
+  // on summary tasks too, which would otherwise collapse the aggregate bar
+  // to a single point.
+  const isPointInTime = node.isMilestone && !node.isSummary
+  const width = isPointInTime ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
 
   const rowBg = node.isSummary ? (node.depth === 0 ? '#eef2ff' : '#f8fafc') : undefined
 
@@ -131,7 +136,7 @@ export function GanttRowTimeline({ node, density, scale, rangeStart, status }: G
           height={metrics.barHeight}
           percentComplete={node.percentComplete}
           status={status}
-          isMilestone={node.isMilestone}
+          isMilestone={isPointInTime}
         />
       )}
     </div>
