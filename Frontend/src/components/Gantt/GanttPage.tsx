@@ -12,6 +12,17 @@ import type { GanttDensity, GanttScale, ProjectDTO } from './types'
 // (uid 0, "Не назначено") is excluded the same way.
 const UNASSIGNED_RESOURCE_UID = -65535
 
+const SCALE_STORAGE_KEY = 'gantt-scale'
+const DENSITY_STORAGE_KEY = 'gantt-density'
+
+function isGanttScale(value: string | null): value is GanttScale {
+  return value === 'day' || value === 'week' || value === 'month'
+}
+
+function isGanttDensity(value: string | null): value is GanttDensity {
+  return value === 'default' || value === 'compact' || value === 'dense'
+}
+
 const EMPTY_STATUS_COUNTS: Record<TaskStatus, number> = {
   complete: 0,
   inWork: 0,
@@ -23,9 +34,24 @@ const EMPTY_STATUS_COUNTS: Record<TaskStatus, number> = {
 export function GanttPage() {
   const [project, setProject] = useState<ProjectDTO | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [scale, setScale] = useState<GanttScale>('day')
-  const [density, setDensity] = useState<GanttDensity>('default')
+  const [scale, setScaleState] = useState<GanttScale>(() => {
+    const saved = localStorage.getItem(SCALE_STORAGE_KEY)
+    return isGanttScale(saved) ? saved : 'day'
+  })
+  const [density, setDensityState] = useState<GanttDensity>(() => {
+    const saved = localStorage.getItem(DENSITY_STORAGE_KEY)
+    return isGanttDensity(saved) ? saved : 'default'
+  })
   const [collapsed, setCollapsed] = useState<ReadonlySet<number>>(() => new Set())
+
+  const setScale = (next: GanttScale) => {
+    localStorage.setItem(SCALE_STORAGE_KEY, next)
+    setScaleState(next)
+  }
+  const setDensity = (next: GanttDensity) => {
+    localStorage.setItem(DENSITY_STORAGE_KEY, next)
+    setDensityState(next)
+  }
 
   useEffect(() => {
     fetchProject()
