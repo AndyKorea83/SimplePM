@@ -37,6 +37,14 @@ export function durationToWidth(start: Date, finish: Date, scale: GanttScale): n
   return Math.max(daysBetween(start, finish), 0) * pxPerDay(scale)
 }
 
+// Inverse of dateToX: the date at horizontal offset x from rangeStart.
+export function xToDate(x: number, rangeStart: Date, scale: GanttScale): Date {
+  const days = Math.round(x / pxPerDay(scale))
+  const date = startOfDay(rangeStart)
+  date.setDate(date.getDate() + days)
+  return date
+}
+
 export type DayColumn = { date: Date; label: string; isToday: boolean }
 
 export function buildDayColumns(start: Date, end: Date, today: Date): DayColumn[] {

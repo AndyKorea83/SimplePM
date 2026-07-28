@@ -1,4 +1,13 @@
-import { buildDayColumns, buildMonthGroups, buildWeekColumns, columnWidth, dateToX, type DayColumn } from './dateGrid'
+import { useEffect, useRef } from 'react'
+import {
+  buildDayColumns,
+  buildMonthGroups,
+  buildWeekColumns,
+  columnWidth,
+  dateToX,
+  xToDate,
+  type DayColumn,
+} from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { flattenVisible } from './buildTaskTree'
 import { GanttRowBar, GanttRowLeft, GanttRowTimelineBackground, rowHeightOf } from './GanttRow'
@@ -9,6 +18,7 @@ type TimelineScale = 'day' | 'week'
 
 const LEFT_PANE_WIDTH = 710
 const MONTH_ROW_HEIGHT = 24
+const INITIAL_DATE_STORAGE_KEY = 'gantt-initial-date'
 
 type GanttWorkspaceProps = {
   roots: GanttTaskNode[]
@@ -66,8 +76,46 @@ export function GanttWorkspace({
   }
   collectChildren(roots)
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Kept fresh on every render so the unmount cleanup below (registered
+  // once, at mount) reads the scale/rangeStart in effect when the user
+  // actually navigates away, not whatever they were when the page opened.
+  const latest = useRef({ scale, rangeStart })
+  latest.current = { scale, rangeStart }
+  // By the time an unmount cleanup runs, the element may already be
+  // detached — a detached element's scrollLeft always reads back as 0. A
+  // scroll listener keeps this ref current while it's still attached, so
+  // the cleanup has a real value to save instead of a false 0.
+  const lastScrollLeft = useRef(0)
+
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+
+    const saved = localStorage.getItem(INITIAL_DATE_STORAGE_KEY)
+    if (saved) {
+      const savedDate = new Date(saved)
+      if (!Number.isNaN(savedDate.getTime())) {
+        container.scrollLeft = dateToX(savedDate, latest.current.rangeStart, latest.current.scale)
+      }
+    }
+    lastScrollLeft.current = container.scrollLeft
+
+    const handleScroll = () => {
+      lastScrollLeft.current = container.scrollLeft
+    }
+    container.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      const { scale: currentScale, rangeStart: currentRangeStart } = latest.current
+      const visibleDate = xToDate(lastScrollLeft.current, currentRangeStart, currentScale)
+      localStorage.setItem(INITIAL_DATE_STORAGE_KEY, visibleDate.toISOString())
+    }
+  }, [])
+
   return (
-    <div className="flex min-h-0 flex-1 overflow-auto bg-white">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto bg-white">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
             horizontally. z-40 keeps it above every right-pane layer
