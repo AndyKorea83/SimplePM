@@ -129,10 +129,7 @@ export function Sidebar({
               }`}
             >
               <Icon {...NAV_ICONS[route.key]} />
-              <Label
-                collapsed={collapsed}
-                className={`text-[13px] text-white ${isActive ? 'font-semibold' : 'font-normal'}`}
-              >
+              <Label collapsed={collapsed} className="text-[13px] text-white font-normal">
                 {route.label}
               </Label>
             </Link>
