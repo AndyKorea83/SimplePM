@@ -1,4 +1,4 @@
-import { buildDayColumns, buildWeekColumns, columnWidth, dateToX } from './dateGrid'
+import { buildDayColumns, buildMonthGroups, buildWeekColumns, columnWidth, dateToX, type DayColumn } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { flattenVisible } from './buildTaskTree'
 import { GanttRowBar, GanttRowLeft, GanttRowTimelineBackground, rowHeightOf } from './GanttRow'
@@ -8,6 +8,7 @@ import type { GanttDensity, GanttTaskNode } from './types'
 type TimelineScale = 'day' | 'week'
 
 const LEFT_PANE_WIDTH = 710
+const MONTH_ROW_HEIGHT = 24
 
 type GanttWorkspaceProps = {
   roots: GanttTaskNode[]
@@ -39,6 +40,8 @@ export function GanttWorkspace({
   const columns =
     scale === 'day' ? buildDayColumns(rangeStart, rangeEnd, today) : buildWeekColumns(rangeStart, rangeEnd)
   const timelineWidth = columns.length * width
+  const monthGroups = scale === 'day' ? buildMonthGroups(columns as DayColumn[]) : []
+  const monthRowHeight = scale === 'day' ? MONTH_ROW_HEIGHT : 0
   const showTodayLine = today >= rangeStart && today <= rangeEnd
   // Center the line in whichever day/week column contains today, rather
   // than sitting on its left edge.
@@ -71,15 +74,18 @@ export function GanttWorkspace({
             (backgrounds/gridlines/today-line/bars top out at z-30), so
             scrolled-under bars never paint over the frozen columns. */}
         <div className="sticky left-0 z-40 flex shrink-0 flex-col bg-white" style={{ width: LEFT_PANE_WIDTH }}>
-          <div
-            className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] bg-white px-4 text-[12px] font-semibold text-[#94a3b8]"
-            style={{ height: metrics.headerHeight }}
-          >
-            <p className="min-w-0 flex-1">Задача</p>
-            <p className="w-[120px] shrink-0">Исполнители</p>
-            <p className="w-[60px] shrink-0 text-center">Оценка</p>
-            <p className="w-[60px] shrink-0 text-center">Начало</p>
-            <p className="w-[70px] shrink-0 text-center">Окончание</p>
+          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
+            {monthRowHeight > 0 && <div className="shrink-0" style={{ height: monthRowHeight }} />}
+            <div
+              className="flex shrink-0 items-center gap-3 px-4 text-[12px] font-semibold text-[#94a3b8]"
+              style={{ height: metrics.headerHeight }}
+            >
+              <p className="min-w-0 flex-1">Задача</p>
+              <p className="w-[120px] shrink-0">Исполнители</p>
+              <p className="w-[60px] shrink-0 text-center">Оценка</p>
+              <p className="w-[60px] shrink-0 text-center">Начало</p>
+              <p className="w-[70px] shrink-0 text-center">Окончание</p>
+            </div>
           </div>
           {visible.map((node) => (
             <GanttRowLeft
@@ -97,22 +103,34 @@ export function GanttWorkspace({
 
         {/* RIGHT PANE: timeline grid, bars, today-line */}
         <div className="relative flex-1 shrink-0" style={{ width: timelineWidth }}>
-          <div
-            className="sticky top-0 z-10 flex shrink-0 border-b border-[#e2e8f0] bg-white"
-            style={{ height: metrics.headerHeight }}
-          >
-            {columns.map((column, index) => {
-              const isToday = scale === 'day' && 'isToday' in column && column.isToday
-              return (
-                <div
-                  key={index}
-                  className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
-                  style={{ width, color: isToday ? '#ef4444' : '#94a3b8', fontWeight: isToday ? 700 : 500 }}
-                >
-                  {column.label}
-                </div>
-              )
-            })}
+          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
+            {monthGroups.length > 0 && (
+              <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: monthRowHeight }}>
+                {monthGroups.map((group) => (
+                  <div
+                    key={group.startIndex}
+                    className="flex shrink-0 items-center border-l border-[#e2e8f0] px-2 text-[11px] font-semibold text-[#475569] first:border-l-0"
+                    style={{ width: group.days * width }}
+                  >
+                    {group.label}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex shrink-0" style={{ height: metrics.headerHeight }}>
+              {columns.map((column, index) => {
+                const isToday = scale === 'day' && 'isToday' in column && column.isToday
+                return (
+                  <div
+                    key={index}
+                    className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
+                    style={{ width, color: isToday ? '#ef4444' : '#94a3b8', fontWeight: isToday ? 700 : 500 }}
+                  >
+                    {column.label}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <div className="relative">
@@ -124,11 +142,20 @@ export function GanttWorkspace({
               ))}
             </div>
 
-            {/* Layer 2: day/week gridlines */}
+            {/* Layer 2: day/week gridlines, with month boundaries emphasized */}
             <div className="absolute inset-0 z-10">
               {columns.map((_, index) => (
                 <div key={index} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: index * width }} />
               ))}
+              {monthGroups
+                .filter((group) => group.startIndex > 0)
+                .map((group) => (
+                  <div
+                    key={group.startIndex}
+                    className="absolute inset-y-0 w-px bg-[#cbd5e1]"
+                    style={{ left: group.startIndex * width }}
+                  />
+                ))}
             </div>
 
             {/* Layer 3: today line — dashed, centered in its column */}

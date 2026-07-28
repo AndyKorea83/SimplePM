@@ -82,3 +82,33 @@ export function formatDateRange(start: Date, finish: Date): string {
   const year = finish.getFullYear()
   return `${formatDayMonth(start)} - ${formatDayMonth(finish)}, ${year}`
 }
+
+const MONTH_NAMES_FULL = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+]
+
+export type MonthGroup = { label: string; startIndex: number; days: number }
+
+// Groups consecutive day columns by calendar month, for the day-scale
+// header's month row and for marking month-boundary gridlines.
+export function buildMonthGroups(columns: DayColumn[]): MonthGroup[] {
+  const groups: MonthGroup[] = []
+  let prevKey = ''
+
+  columns.forEach((column, index) => {
+    const key = `${column.date.getFullYear()}-${column.date.getMonth()}`
+    if (key === prevKey) {
+      groups[groups.length - 1].days += 1
+      return
+    }
+    groups.push({
+      label: `${MONTH_NAMES_FULL[column.date.getMonth()]} ${column.date.getFullYear()}`,
+      startIndex: index,
+      days: 1,
+    })
+    prevKey = key
+  })
+
+  return groups
+}
