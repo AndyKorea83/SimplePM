@@ -79,13 +79,24 @@ export function formatDayMonth(date: Date): string {
   return `${date.getDate()} ${MONTH_LABELS[date.getMonth()]}`
 }
 
+function formatNumericDayMonth(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}.${month}`
+}
+
 export function buildWeekColumns(start: Date, end: Date): WeekColumn[] {
   const columns: WeekColumn[] = []
   const cursor = startOfDay(start)
   const last = startOfDay(end)
 
   while (cursor <= last) {
-    columns.push({ start: new Date(cursor), label: formatDayMonth(cursor) })
+    const weekEnd = new Date(cursor)
+    weekEnd.setDate(weekEnd.getDate() + 6)
+    columns.push({
+      start: new Date(cursor),
+      label: `${formatNumericDayMonth(cursor)} - ${formatNumericDayMonth(weekEnd)}`,
+    })
     cursor.setDate(cursor.getDate() + 7)
   }
   return columns
