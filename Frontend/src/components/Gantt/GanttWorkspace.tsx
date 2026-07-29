@@ -262,7 +262,7 @@ export function GanttWorkspace({
           </div>
 
           <div
-            className="relative"
+            className="relative z-0"
             onMouseMove={(e) => {
               const x = e.clientX - e.currentTarget.getBoundingClientRect().left
               const column = columns.find((c) => x >= c.x && x < c.x + c.width)
@@ -270,17 +270,17 @@ export function GanttWorkspace({
             }}
             onMouseLeave={() => setHoveredColumnKey(null)}
           >
-            {/* Layer 1: group/stage row backgrounds — normal flow, defines
-                the stack's total height for layers 2-4 below. */}
-            <div className="relative z-0">
-              {visible.map((node) => (
-                <GanttRowTimelineBackground key={node.uid} node={node} density={density} />
-              ))}
-            </div>
+            {/* This wrapper has its own z-index (not just `relative`) so it
+                forms a stacking context: layers 1-5 below stay contained
+                between z-0 and z-30 without a negative z-index escaping past
+                this component into the page's stacking order. */}
 
-            {/* Layer 2: weekend column shading (day scale only — week/month
-                columns don't map to a single day) */}
-            <div className="absolute inset-0 z-[5]">
+            {/* Layer 1: weekend column shading (day scale only — week/month
+                columns don't map to a single day). Sits below everything
+                else, including the group/stage row fills, so it only shows
+                through their transparent (plain task row) gaps instead of
+                washing out a group's own background color. */}
+            <div className="absolute inset-0 z-0">
               {columns
                 .filter((column) => column.isWeekend)
                 .map((column) => (
@@ -290,6 +290,14 @@ export function GanttWorkspace({
                     style={{ left: column.x, width: column.width }}
                   />
                 ))}
+            </div>
+
+            {/* Layer 2: group/stage row backgrounds — normal flow, defines
+                the stack's total height for layers 3-5 below. */}
+            <div className="relative z-[1]">
+              {visible.map((node) => (
+                <GanttRowTimelineBackground key={node.uid} node={node} density={density} />
+              ))}
             </div>
 
             {/* Layer 3: column gridlines (day/week/month), with the current
