@@ -117,7 +117,7 @@ export function GanttRowLeft({
     const isStage = node.depth === 0
     return (
       <div
-        className="flex shrink-0 items-center border-b border-[#e2e8f0] pr-4"
+        className="flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] pr-4"
         style={{ height: metrics.groupRowHeight, backgroundColor: rowColor }}
         onMouseEnter={() => onHoverChange(true)}
         onMouseLeave={() => onHoverChange(false)}
@@ -132,6 +132,11 @@ export function GanttRowLeft({
             {node.name}
           </button>
         </div>
+        {/* Empty placeholders matching the "Исполнители"/"Оценка" columns —
+            group rows don't show those, but need the same slots as leaf rows
+            and the header so the start/finish columns line up exactly. */}
+        <span className="w-[120px] shrink-0" />
+        <span className="w-[60px] shrink-0" />
         <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
         <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.finish)}</p>
       </div>
