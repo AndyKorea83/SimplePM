@@ -171,5 +171,16 @@ export function buildMonthColumns(start: Date, end: Date): MonthGroup[] {
     days.push({ date: new Date(cursor) })
     cursor.setDate(cursor.getDate() + 1)
   }
-  return buildMonthGroups(days)
+  const groups = buildMonthGroups(days)
+
+  // Purely cosmetic: render the project's last month as a complete month
+  // regardless of which day it actually ends on, so the scale doesn't end
+  // mid-column.
+  const lastGroup = groups[groups.length - 1]
+  if (lastGroup) {
+    const lastDate = days[days.length - 1].date
+    lastGroup.days = new Date(lastDate.getFullYear(), lastDate.getMonth() + 1, 0).getDate()
+  }
+
+  return groups
 }

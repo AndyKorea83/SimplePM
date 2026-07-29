@@ -203,7 +203,10 @@ export function GanttWorkspace({
         </div>
 
         {/* RIGHT PANE: timeline grid, bars, today-line */}
-        <div className="relative flex-1 shrink-0" style={{ width: timelineWidth }}>
+        <div
+          className={`relative flex-1 shrink-0 ${scale === 'month' ? 'border-r border-[#e2e8f0]' : ''}`}
+          style={{ width: timelineWidth }}
+        >
           {/* z-40: above every row layer below (backgrounds/gridlines/
               today-line/bars top out at z-30) so rows scrolling up never
               paint over the header's opaque background; still under the
