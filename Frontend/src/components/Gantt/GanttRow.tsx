@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
+import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
 import { dateToX, durationToWidth, formatDayMonth } from './dateGrid'
@@ -100,6 +102,8 @@ export function GanttRowLeft({
   }
 
   const effortDays = Math.round(node.durationHours / 8)
+  const finishButtonRef = useRef<HTMLButtonElement>(null)
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null)
 
   return (
     <div
@@ -123,13 +127,25 @@ export function GanttRowLeft({
         {effortDays > 0 ? `${effortDays}д` : ''}
       </p>
       <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
-      <input
-        type="date"
-        value={node.finish.slice(0, 10)}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => onFinishChange(e.target.value)}
-        className="w-[70px] shrink-0 cursor-pointer rounded border border-transparent text-center text-[12px] text-[#475469] hover:border-[#e2e8f0]"
-      />
+      <button
+        ref={finishButtonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setPickerAnchor(finishButtonRef.current!.getBoundingClientRect())
+        }}
+        className="w-[70px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
+      >
+        {formatShortDate(node.finish)}
+      </button>
+      {pickerAnchor && (
+        <DatePickerPopover
+          value={node.finish}
+          anchorRect={pickerAnchor}
+          onChange={onFinishChange}
+          onClose={() => setPickerAnchor(null)}
+        />
+      )}
     </div>
   )
 }
