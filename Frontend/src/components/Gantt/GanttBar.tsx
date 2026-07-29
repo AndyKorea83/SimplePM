@@ -19,7 +19,7 @@ export function GanttBar({ left, width, height, percentComplete, status, isMiles
     const size = height * 0.7
     return (
       <div
-        className="absolute top-1/2 cursor-pointer rounded-[2px]"
+        className="absolute top-1/2 cursor-pointer select-none rounded-[2px]"
         onDoubleClick={onDoubleClick}
         style={{
           left: left - size / 2,
@@ -38,7 +38,7 @@ export function GanttBar({ left, width, height, percentComplete, status, isMiles
 
   return (
     <div
-      className="absolute top-1/2 cursor-pointer"
+      className="absolute top-1/2 cursor-pointer select-none"
       onDoubleClick={onDoubleClick}
       style={{ left, width, height, transform: 'translateY(-50%)' }}
     >
