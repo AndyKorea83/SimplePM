@@ -70,7 +70,7 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 		OutlineLevel:    1,
 		Start:           input.Start,
 		Finish:          input.Finish,
-		Duration:        input.Finish.Sub(input.Start),
+		Duration:        businessDaysDuration(input.Start, input.Finish),
 		PercentComplete: input.PercentComplete,
 		IsMilestone:     input.IsMilestone,
 		IsBlocked:       input.IsBlocked,
@@ -118,6 +118,12 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	}
 	task.Start = start
 	task.Finish = finish
+	// Only recompute the effort estimate when a date actually moved — an
+	// update that only touches e.g. PercentComplete must not silently change
+	// it too.
+	if input.Start != nil || input.Finish != nil {
+		task.Duration = businessDaysDuration(start, finish)
+	}
 	if input.PercentComplete != nil {
 		task.PercentComplete = *input.PercentComplete
 	}
@@ -166,6 +172,32 @@ func validateRange(start, finish time.Time) error {
 		return fmt.Errorf("finish %s is before start %s", finish, start)
 	}
 	return nil
+}
+
+const workHoursPerDay = 8
+
+// businessDaysDuration is the effort implied by a task's calendar span: one
+// workHoursPerDay-hour day per weekday (Mon-Fri) in the inclusive
+// [start, finish] date range, weekends excluded. Used whenever Start/Finish
+// are set or changed (create, or update) so the estimate always reflects
+// the current dates instead of going stale or counting weekend days as work.
+func businessDaysDuration(start, finish time.Time) time.Duration {
+	s := truncateToDate(start)
+	f := truncateToDate(finish)
+	if f.Before(s) {
+		s, f = f, s
+	}
+	days := 0
+	for d := s; !d.After(f); d = d.AddDate(0, 0, 1) {
+		if weekday := d.Weekday(); weekday != time.Saturday && weekday != time.Sunday {
+			days++
+		}
+	}
+	return time.Duration(days) * workHoursPerDay * time.Hour
+}
+
+func truncateToDate(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
 func (r *Repository) findTaskIndex(uid int) (int, error) {
