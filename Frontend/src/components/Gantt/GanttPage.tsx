@@ -210,6 +210,15 @@ export function GanttPage() {
     setFormState(null)
   }
 
+  const handleStartChange = async (uid: number, isoDate: string) => {
+    try {
+      await updateTask(uid, { start: new Date(isoDate).toISOString() })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   const handleFinishChange = async (uid: number, isoDate: string) => {
     try {
       await updateTask(uid, { finish: new Date(isoDate).toISOString() })
@@ -293,6 +302,7 @@ export function GanttPage() {
         today={today}
         assigneesByTaskUid={assigneesByTaskUid}
         onEditTask={openEditForm}
+        onStartChange={handleStartChange}
         onFinishChange={handleFinishChange}
       />
       <BottomStatusBar

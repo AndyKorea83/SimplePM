@@ -36,6 +36,41 @@ function formatShortDate(iso: string): string {
   return formatDayMonth(new Date(iso))
 }
 
+// A date cell that displays like the read-only "Начало"/"Окончание" text
+// but is clickable and opens a DatePickerPopover (portalled to <body>, so it
+// isn't clipped by the table's scroll container) to pick a new date.
+function EditableDateCell({
+  value,
+  onChange,
+  className,
+}: {
+  value: string
+  onChange: (isoDate: string) => void
+  className: string
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setAnchor(buttonRef.current!.getBoundingClientRect())
+        }}
+        className={className}
+      >
+        {formatShortDate(value)}
+      </button>
+      {anchor && (
+        <DatePickerPopover value={value} anchorRect={anchor} onChange={onChange} onClose={() => setAnchor(null)} />
+      )}
+    </>
+  )
+}
+
 type GanttRowLeftProps = {
   node: GanttTaskNode
   density: GanttDensity
@@ -45,6 +80,7 @@ type GanttRowLeftProps = {
   status: TaskStatus
   assigneeNames: string
   onEdit: () => void
+  onStartChange: (isoDate: string) => void
   onFinishChange: (isoDate: string) => void
   isHovered: boolean
   onHoverChange: (hovering: boolean) => void
@@ -69,6 +105,7 @@ export function GanttRowLeft({
   status,
   assigneeNames,
   onEdit,
+  onStartChange,
   onFinishChange,
   isHovered,
   onHoverChange,
@@ -102,8 +139,6 @@ export function GanttRowLeft({
   }
 
   const effortDays = Math.round(node.durationHours / 8)
-  const finishButtonRef = useRef<HTMLButtonElement>(null)
-  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null)
 
   return (
     <div
@@ -126,26 +161,16 @@ export function GanttRowLeft({
       <p className="w-[60px] shrink-0 text-center text-[12px] font-semibold text-[#475569]">
         {effortDays > 0 ? `${effortDays}д` : ''}
       </p>
-      <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
-      <button
-        ref={finishButtonRef}
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          setPickerAnchor(finishButtonRef.current!.getBoundingClientRect())
-        }}
+      <EditableDateCell
+        value={node.start}
+        onChange={onStartChange}
+        className="w-[60px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
+      />
+      <EditableDateCell
+        value={node.finish}
+        onChange={onFinishChange}
         className="w-[70px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
-      >
-        {formatShortDate(node.finish)}
-      </button>
-      {pickerAnchor && (
-        <DatePickerPopover
-          value={node.finish}
-          anchorRect={pickerAnchor}
-          onChange={onFinishChange}
-          onClose={() => setPickerAnchor(null)}
-        />
-      )}
+      />
     </div>
   )
 }

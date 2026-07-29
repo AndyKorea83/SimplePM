@@ -65,6 +65,7 @@ type GanttWorkspaceProps = {
   today: Date
   assigneesByTaskUid: Map<number, string>
   onEditTask: (uid: number) => void
+  onStartChange: (uid: number, isoDate: string) => void
   onFinishChange: (uid: number, isoDate: string) => void
 }
 
@@ -79,6 +80,7 @@ export function GanttWorkspace({
   today,
   assigneesByTaskUid,
   onEditTask,
+  onStartChange,
   onFinishChange,
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
@@ -196,6 +198,7 @@ export function GanttWorkspace({
               status={deriveStatus(node, today)}
               assigneeNames={assigneesByTaskUid.get(node.uid) ?? ''}
               onEdit={() => onEditTask(node.uid)}
+              onStartChange={(isoDate) => onStartChange(node.uid, isoDate)}
               onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
               isHovered={hoveredUid === node.uid}
               onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
