@@ -9,16 +9,18 @@ type GanttBarProps = {
   percentComplete: number
   status: TaskStatus
   isMilestone: boolean
+  onDoubleClick?: () => void
 }
 
-export function GanttBar({ left, width, height, percentComplete, status, isMilestone }: GanttBarProps) {
+export function GanttBar({ left, width, height, percentComplete, status, isMilestone, onDoubleClick }: GanttBarProps) {
   const color = STATUS_COLORS[status]
 
   if (isMilestone) {
     const size = height * 0.7
     return (
       <div
-        className="absolute top-1/2 rounded-[2px]"
+        className="absolute top-1/2 cursor-pointer rounded-[2px]"
+        onDoubleClick={onDoubleClick}
         style={{
           left: left - size / 2,
           width: size,
@@ -35,7 +37,11 @@ export function GanttBar({ left, width, height, percentComplete, status, isMiles
   const labelInside = fillWidth >= MIN_INSIDE_LABEL_WIDTH
 
   return (
-    <div className="absolute top-1/2" style={{ left, width, height, transform: 'translateY(-50%)' }}>
+    <div
+      className="absolute top-1/2 cursor-pointer"
+      onDoubleClick={onDoubleClick}
+      style={{ left, width, height, transform: 'translateY(-50%)' }}
+    >
       <div
         className="absolute inset-0 rounded-[4px]"
         style={{ backgroundColor: color, opacity: 0.15 }}

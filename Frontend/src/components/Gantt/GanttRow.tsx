@@ -207,6 +207,7 @@ type GanttRowBarProps = {
   top: number
   isHovered: boolean
   onHoverChange: (hovering: boolean) => void
+  onEdit: () => void
 }
 
 // Top layer: the task/group bar itself, absolutely positioned at this row's
@@ -215,7 +216,17 @@ type GanttRowBarProps = {
 // the only element on the timeline side that can receive this row's hover
 // events — the highlight tint uses alpha so those lower layers still show
 // through.
-export function GanttRowBar({ node, density, scale, rangeStart, status, top, isHovered, onHoverChange }: GanttRowBarProps) {
+export function GanttRowBar({
+  node,
+  density,
+  scale,
+  rangeStart,
+  status,
+  top,
+  isHovered,
+  onHoverChange,
+  onEdit,
+}: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
   const height = rowHeightOf(node, density)
   const left = dateToX(new Date(node.start), rangeStart, scale)
@@ -235,7 +246,8 @@ export function GanttRowBar({ node, density, scale, rangeStart, status, top, isH
     >
       {node.isSummary ? (
         <div
-          className="absolute top-1/2 rounded-[6px]"
+          className="absolute top-1/2 cursor-pointer rounded-[6px]"
+          onDoubleClick={onEdit}
           style={{
             left,
             width: Math.max(width, 4),
@@ -252,6 +264,7 @@ export function GanttRowBar({ node, density, scale, rangeStart, status, top, isH
           percentComplete={node.percentComplete}
           status={status}
           isMilestone={isPointInTime}
+          onDoubleClick={onEdit}
         />
       )}
     </div>

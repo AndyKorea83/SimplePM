@@ -347,6 +347,7 @@ export function GanttWorkspace({
                   top={rowTops[index]}
                   isHovered={hoveredUid === node.uid}
                   onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
+                  onEdit={() => onEditTask(node.uid)}
                 />
               ))}
             </div>
