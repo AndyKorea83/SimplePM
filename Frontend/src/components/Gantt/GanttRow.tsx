@@ -44,6 +44,18 @@ type GanttRowLeftProps = {
   assigneeNames: string
   onEdit: () => void
   onFinishChange: (isoDate: string) => void
+  isHovered: boolean
+  onHoverChange: (hovering: boolean) => void
+}
+
+function rowBaseColor(node: GanttTaskNode): string {
+  if (!node.isSummary) return '#ffffff'
+  return node.depth === 0 ? '#eef2ff' : '#f8fafc'
+}
+
+function rowHoverColor(node: GanttTaskNode): string {
+  if (!node.isSummary) return '#f1f5f9'
+  return node.depth === 0 ? '#e0e7ff' : '#eef2ff'
 }
 
 export function GanttRowLeft({
@@ -56,15 +68,20 @@ export function GanttRowLeft({
   assigneeNames,
   onEdit,
   onFinishChange,
+  isHovered,
+  onHoverChange,
 }: GanttRowLeftProps) {
   const metrics = DENSITY_METRICS[density]
+  const rowColor = isHovered ? rowHoverColor(node) : rowBaseColor(node)
 
   if (node.isSummary) {
     const isStage = node.depth === 0
     return (
       <div
-        className={`flex shrink-0 items-center border-b border-[#e2e8f0] pr-4 ${isStage ? 'bg-[#eef2ff]' : 'bg-[#f8fafc]'}`}
-        style={{ height: metrics.groupRowHeight }}
+        className="flex shrink-0 items-center border-b border-[#e2e8f0] pr-4"
+        style={{ height: metrics.groupRowHeight, backgroundColor: rowColor }}
+        onMouseEnter={() => onHoverChange(true)}
+        onMouseLeave={() => onHoverChange(false)}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2" style={{ paddingLeft: 13 + node.depth * 20 }}>
           {hasChildren && <ChevronToggle collapsed={collapsed} onToggle={onToggle} />}
@@ -86,8 +103,10 @@ export function GanttRowLeft({
 
   return (
     <div
-      className="flex shrink-0 items-center gap-3 border-b border-[#f1f5f9] bg-white pr-4"
-      style={{ height: metrics.rowHeight }}
+      className="flex shrink-0 items-center gap-3 border-b border-[#f1f5f9] pr-4"
+      style={{ height: metrics.rowHeight, backgroundColor: rowColor }}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2" style={{ paddingLeft: 16 + node.depth * 20 }}>
         <StatusSquare status={status} />
@@ -140,11 +159,17 @@ type GanttRowBarProps = {
   rangeStart: Date
   status: TaskStatus
   top: number
+  isHovered: boolean
+  onHoverChange: (hovering: boolean) => void
 }
 
 // Top layer: the task/group bar itself, absolutely positioned at this row's
-// cumulative offset within the shared bar-overlay layer.
-export function GanttRowBar({ node, density, scale, rangeStart, status, top }: GanttRowBarProps) {
+// cumulative offset within the shared bar-overlay layer. This wrapper also
+// sits above the background/gridline/today-line layers beneath it, so it's
+// the only element on the timeline side that can receive this row's hover
+// events — the highlight tint uses alpha so those lower layers still show
+// through.
+export function GanttRowBar({ node, density, scale, rangeStart, status, top, isHovered, onHoverChange }: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
   const height = rowHeightOf(node, density)
   const left = dateToX(new Date(node.start), rangeStart, scale)
@@ -156,7 +181,12 @@ export function GanttRowBar({ node, density, scale, rangeStart, status, top }: G
   const width = isPointInTime ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
 
   return (
-    <div className="absolute left-0 w-full" style={{ top, height }}>
+    <div
+      className="absolute left-0 w-full"
+      style={{ top, height, backgroundColor: isHovered ? 'rgba(37, 99, 235, 0.05)' : undefined }}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+    >
       {node.isSummary ? (
         <div
           className="absolute top-1/2 rounded-[6px]"
