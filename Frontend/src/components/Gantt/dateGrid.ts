@@ -25,8 +25,17 @@ export function columnWidth(scale: 'day' | 'week'): number {
   return COLUMN[scale].width
 }
 
-function startOfDay(date: Date): Date {
+export function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+// yyyy-mm-dd in the date's own local fields — never toISOString(), which
+// converts through UTC and can shift the date across a timezone boundary.
+export function toDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function daysBetween(from: Date, to: Date): number {
@@ -38,8 +47,30 @@ export function dateToX(date: Date, rangeStart: Date, scale: GanttScale): number
   return daysBetween(rangeStart, date) * pxPerDay(scale)
 }
 
+// finish is inclusive — a task starting and finishing on the same calendar
+// day still spans that one full day, not zero width, so +1 day here.
 export function durationToWidth(start: Date, finish: Date, scale: GanttScale): number {
-  return Math.max(daysBetween(start, finish), 0) * pxPerDay(scale)
+  return Math.max(daysBetween(start, finish) + 1, 0) * pxPerDay(scale)
+}
+
+// Pushes the project's actual start date back to the start of its coarser
+// unit for week/month scale, so the first rendered column is a whole week
+// (Monday-start) or a whole month — never a partial one — even though the
+// project itself may genuinely start mid-week/mid-month. Day scale is left
+// untouched (every day already starts its own column). Used as the
+// reference `rangeStart` for building columns/gridlines/bars so they all
+// share the same (possibly earlier-than-actual) origin.
+export function alignedRangeStart(rangeStart: Date, scale: GanttScale): Date {
+  if (scale === 'month') {
+    return new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
+  }
+  if (scale === 'week') {
+    const daysSinceMonday = (rangeStart.getDay() + 6) % 7
+    const aligned = startOfDay(rangeStart)
+    aligned.setDate(aligned.getDate() - daysSinceMonday)
+    return aligned
+  }
+  return rangeStart
 }
 
 // Inverse of dateToX: the date at horizontal offset x from rangeStart.
@@ -50,7 +81,7 @@ export function xToDate(x: number, rangeStart: Date, scale: GanttScale): Date {
   return date
 }
 
-export type DayColumn = { date: Date; label: string; isToday: boolean }
+export type DayColumn = { date: Date; label: string; isToday: boolean; isWeekend: boolean }
 
 export function buildDayColumns(start: Date, end: Date, today: Date): DayColumn[] {
   const columns: DayColumn[] = []
@@ -59,10 +90,12 @@ export function buildDayColumns(start: Date, end: Date, today: Date): DayColumn[
   const todayStart = startOfDay(today)
 
   while (cursor <= last) {
+    const weekday = cursor.getDay()
     columns.push({
       date: new Date(cursor),
       label: String(cursor.getDate()),
       isToday: cursor.getTime() === todayStart.getTime(),
+      isWeekend: weekday === 0 || weekday === 6,
     })
     cursor.setDate(cursor.getDate() + 1)
   }

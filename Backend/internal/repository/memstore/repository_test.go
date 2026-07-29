@@ -121,6 +121,22 @@ func TestCreateTask_FinishBeforeStart(t *testing.T) {
 	}
 }
 
+func TestCreateTask_SameDayEarlierFinishTimeAllowed(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	// Same calendar day, but finish's time-of-day (typical MSPDI import: 08:00
+	// start) is earlier than start's (00:00, typical of a date-only edit) —
+	// must still be accepted since the calendar dates aren't out of order.
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:   "Same day",
+		Start:  time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC),
+		Finish: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Errorf("CreateTask: unexpected error for a same-calendar-day range: %v", err)
+	}
+}
+
 func TestUpdateTask_PartialFields(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
@@ -140,6 +156,56 @@ func TestUpdateTask_PartialFields(t *testing.T) {
 	// Fields not passed in the input must survive unchanged.
 	if updated.Start.IsZero() || updated.Finish.IsZero() {
 		t.Error("Start/Finish were cleared by a partial update that didn't touch them")
+	}
+	// The effort estimate is derived from Start/Finish — an update that
+	// doesn't touch either must not recompute (and so change) it.
+	if updated.Duration != 0 {
+		t.Errorf("Duration = %v, want unchanged (0, the fixture's original value) since Start/Finish weren't in this update", updated.Duration)
+	}
+}
+
+func TestBusinessDaysDuration(t *testing.T) {
+	date := func(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
+
+	cases := []struct {
+		name          string
+		start, finish time.Time
+		wantDays      int
+	}{
+		{"same weekday", date(2026, 6, 15), date(2026, 6, 15), 1},          // Monday
+		{"same weekend day", date(2026, 6, 20), date(2026, 6, 20), 0},      // Saturday
+		{"full mon-fri week", date(2026, 6, 15), date(2026, 6, 19), 5},     // Mon-Fri
+		{"spans one weekend", date(2026, 6, 15), date(2026, 6, 21), 5},     // Mon-Sun
+		{"reversed order", date(2026, 6, 21), date(2026, 6, 15), 5},        // finish before start
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := businessDaysDuration(tc.start, tc.finish)
+			want := time.Duration(tc.wantDays) * workHoursPerDay * time.Hour
+			if got != want {
+				t.Errorf("businessDaysDuration(%s, %s) = %v, want %v (%d weekdays)",
+					tc.start.Format("2006-01-02 Mon"), tc.finish.Format("2006-01-02 Mon"), got, want, tc.wantDays)
+			}
+		})
+	}
+}
+
+func TestUpdateTask_RecomputesDurationExcludingWeekends(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	// 2026-06-03 is a Wednesday, 2026-06-12 is a Friday: 8 weekdays
+	// (3,4,5, then 8,9,10,11,12 — the 6th/7th are a Sat/Sun and don't count).
+	newStart := time.Date(2026, 6, 3, 8, 0, 0, 0, time.UTC)
+	newFinish := time.Date(2026, 6, 12, 17, 0, 0, 0, time.UTC)
+	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Start: &newStart, Finish: &newFinish})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	want := 8 * workHoursPerDay * time.Hour
+	if updated.Duration != want {
+		t.Errorf("Duration = %v, want %v (8 weekdays * %dh, weekends excluded)", updated.Duration, want, workHoursPerDay)
 	}
 }
 

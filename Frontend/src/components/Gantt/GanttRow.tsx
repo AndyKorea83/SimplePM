@@ -1,9 +1,17 @@
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
+import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
-import { dateToX, durationToWidth, formatDayMonth } from './dateGrid'
+import { dateToX, durationToWidth, formatDayMonth, pxPerDay, toDateInputValue } from './dateGrid'
 import { STATUS_COLORS, type TaskStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
 
 export function StatusSquare({ status }: { status: TaskStatus }) {
   const color = STATUS_COLORS[status]
@@ -34,6 +42,41 @@ function formatShortDate(iso: string): string {
   return formatDayMonth(new Date(iso))
 }
 
+// A date cell that displays like the read-only "Начало"/"Окончание" text
+// but is clickable and opens a DatePickerPopover (portalled to <body>, so it
+// isn't clipped by the table's scroll container) to pick a new date.
+function EditableDateCell({
+  value,
+  onChange,
+  className,
+}: {
+  value: string
+  onChange: (isoDate: string) => void
+  className: string
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setAnchor(buttonRef.current!.getBoundingClientRect())
+        }}
+        className={className}
+      >
+        {formatShortDate(value)}
+      </button>
+      {anchor && (
+        <DatePickerPopover value={value} anchorRect={anchor} onChange={onChange} onClose={() => setAnchor(null)} />
+      )}
+    </>
+  )
+}
+
 type GanttRowLeftProps = {
   node: GanttTaskNode
   density: GanttDensity
@@ -43,6 +86,7 @@ type GanttRowLeftProps = {
   status: TaskStatus
   assigneeNames: string
   onEdit: () => void
+  onStartChange: (isoDate: string) => void
   onFinishChange: (isoDate: string) => void
   isHovered: boolean
   onHoverChange: (hovering: boolean) => void
@@ -67,6 +111,7 @@ export function GanttRowLeft({
   status,
   assigneeNames,
   onEdit,
+  onStartChange,
   onFinishChange,
   isHovered,
   onHoverChange,
@@ -78,7 +123,7 @@ export function GanttRowLeft({
     const isStage = node.depth === 0
     return (
       <div
-        className="flex shrink-0 items-center border-b border-[#e2e8f0] pr-4"
+        className="flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] pr-4"
         style={{ height: metrics.groupRowHeight, backgroundColor: rowColor }}
         onMouseEnter={() => onHoverChange(true)}
         onMouseLeave={() => onHoverChange(false)}
@@ -93,6 +138,11 @@ export function GanttRowLeft({
             {node.name}
           </button>
         </div>
+        {/* Empty placeholders matching the "Исполнители"/"Оценка" columns —
+            group rows don't show those, but need the same slots as leaf rows
+            and the header so the start/finish columns line up exactly. */}
+        <span className="w-[120px] shrink-0" />
+        <span className="w-[60px] shrink-0" />
         <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
         <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.finish)}</p>
       </div>
@@ -122,13 +172,15 @@ export function GanttRowLeft({
       <p className="w-[60px] shrink-0 text-center text-[12px] font-semibold text-[#475569]">
         {effortDays > 0 ? `${effortDays}д` : ''}
       </p>
-      <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
-      <input
-        type="date"
-        value={node.finish.slice(0, 10)}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => onFinishChange(e.target.value)}
-        className="w-[70px] shrink-0 cursor-pointer rounded border border-transparent text-center text-[12px] text-[#475469] hover:border-[#e2e8f0]"
+      <EditableDateCell
+        value={node.start}
+        onChange={onStartChange}
+        className="w-[60px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
+      />
+      <EditableDateCell
+        value={node.finish}
+        onChange={onFinishChange}
+        className="w-[70px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
       />
     </div>
   )
@@ -161,7 +213,12 @@ type GanttRowBarProps = {
   top: number
   isHovered: boolean
   onHoverChange: (hovering: boolean) => void
+  onEdit: () => void
+  onStartChange: (isoDate: string) => void
+  onFinishChange: (isoDate: string) => void
 }
+
+type EdgeDrag = { edge: 'start' | 'finish'; deltaDays: number }
 
 // Top layer: the task/group bar itself, absolutely positioned at this row's
 // cumulative offset within the shared bar-overlay layer. This wrapper also
@@ -169,16 +226,64 @@ type GanttRowBarProps = {
 // the only element on the timeline side that can receive this row's hover
 // events — the highlight tint uses alpha so those lower layers still show
 // through.
-export function GanttRowBar({ node, density, scale, rangeStart, status, top, isHovered, onHoverChange }: GanttRowBarProps) {
+export function GanttRowBar({
+  node,
+  density,
+  scale,
+  rangeStart,
+  status,
+  top,
+  isHovered,
+  onHoverChange,
+  onEdit,
+  onStartChange,
+  onFinishChange,
+}: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
   const height = rowHeightOf(node, density)
-  const left = dateToX(new Date(node.start), rangeStart, scale)
+  const [drag, setDrag] = useState<EdgeDrag | null>(null)
+
+  // While dragging an edge, preview the bar at its dragged position/width —
+  // the actual task dates only change once the drag ends (see beginDrag).
+  const effectiveStart = drag?.edge === 'start' ? addDays(new Date(node.start), drag.deltaDays) : new Date(node.start)
+  const effectiveFinish =
+    drag?.edge === 'finish' ? addDays(new Date(node.finish), drag.deltaDays) : new Date(node.finish)
+
+  const left = dateToX(effectiveStart, rangeStart, scale)
   // A group/stage row spans its children's date range regardless of its own
   // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
   // on summary tasks too, which would otherwise collapse the aggregate bar
   // to a single point.
   const isPointInTime = node.isMilestone && !node.isSummary
-  const width = isPointInTime ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
+  const width = isPointInTime ? 0 : durationToWidth(effectiveStart, effectiveFinish, scale)
+
+  // Drags a bar's start or finish edge by whole days, following the mouse
+  // horizontally; committed as a single onStartChange/onFinishChange call
+  // when the mouse is released (not on every pixel of movement).
+  const beginDrag = (edge: 'start' | 'finish') => (e: ReactMouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const startX = e.clientX
+    let deltaDays = 0
+    setDrag({ edge, deltaDays: 0 })
+
+    const handleMove = (moveEvent: globalThis.MouseEvent) => {
+      deltaDays = Math.round((moveEvent.clientX - startX) / pxPerDay(scale))
+      setDrag({ edge, deltaDays })
+    }
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+      setDrag(null)
+      if (deltaDays === 0) return
+      const base = edge === 'start' ? node.start : node.finish
+      const next = toDateInputValue(addDays(new Date(base), deltaDays))
+      if (edge === 'start') onStartChange(next)
+      else onFinishChange(next)
+    }
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+  }
 
   return (
     <div
@@ -189,7 +294,8 @@ export function GanttRowBar({ node, density, scale, rangeStart, status, top, isH
     >
       {node.isSummary ? (
         <div
-          className="absolute top-1/2 rounded-[6px]"
+          className="absolute top-1/2 cursor-pointer rounded-[6px]"
+          onDoubleClick={onEdit}
           style={{
             left,
             width: Math.max(width, 4),
@@ -206,6 +312,8 @@ export function GanttRowBar({ node, density, scale, rangeStart, status, top, isH
           percentComplete={node.percentComplete}
           status={status}
           isMilestone={isPointInTime}
+          onDoubleClick={onEdit}
+          onEdgeMouseDown={isPointInTime ? undefined : beginDrag}
         />
       )}
     </div>

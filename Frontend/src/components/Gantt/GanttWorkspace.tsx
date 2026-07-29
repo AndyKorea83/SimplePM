@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  alignedRangeStart,
   buildDayColumns,
   buildMonthColumns,
   buildMonthGroups,
@@ -24,7 +25,14 @@ const INITIAL_DATE_STORAGE_KEY = 'gantt-initial-date'
 // columns are all the same width, month columns aren't (months have
 // different day counts), so header/gridlines/today-line render off this
 // instead of a single shared `width`.
-type RenderColumn = { key: number; x: number; width: number; label: string; isToday?: boolean }
+type RenderColumn = {
+  key: number
+  x: number
+  width: number
+  label: string
+  isToday?: boolean
+  isWeekend?: boolean
+}
 
 function buildRenderColumns(scale: GanttScale, rangeStart: Date, rangeEnd: Date, today: Date): RenderColumn[] {
   if (scale === 'month') {
@@ -44,6 +52,7 @@ function buildRenderColumns(scale: GanttScale, rangeStart: Date, rangeEnd: Date,
       width,
       label: column.label,
       isToday: column.isToday,
+      isWeekend: column.isWeekend,
     }))
   }
   return buildWeekColumns(rangeStart, rangeEnd).map((column, index) => ({
@@ -65,6 +74,7 @@ type GanttWorkspaceProps = {
   today: Date
   assigneesByTaskUid: Map<number, string>
   onEditTask: (uid: number) => void
+  onStartChange: (uid: number, isoDate: string) => void
   onFinishChange: (uid: number, isoDate: string) => void
 }
 
@@ -79,6 +89,7 @@ export function GanttWorkspace({
   today,
   assigneesByTaskUid,
   onEditTask,
+  onStartChange,
   onFinishChange,
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
@@ -86,7 +97,14 @@ export function GanttWorkspace({
   const [hoveredUid, setHoveredUid] = useState<number | null>(null)
   const [hoveredColumnKey, setHoveredColumnKey] = useState<number | null>(null)
 
-  const columns = buildRenderColumns(scale, rangeStart, rangeEnd, today)
+  // The reference origin for all column/bar positioning below. For
+  // week/month scale this is pulled back to the start of that unit (Monday,
+  // the 1st) so the first column is never partial — the project's actual
+  // rangeStart prop is kept as-is for the header's date-range label and the
+  // "is today within the project" check further down.
+  const renderRangeStart = alignedRangeStart(rangeStart, scale)
+
+  const columns = buildRenderColumns(scale, renderRangeStart, rangeEnd, today)
   const timelineWidth = columns.reduce((sum, column) => sum + column.width, 0)
   // Every scale gets an extra header row grouping its columns by the next
   // coarser calendar unit: day/week columns group by month, month columns
@@ -95,13 +113,13 @@ export function GanttWorkspace({
   // rendering below works for either without branching.
   const superGroups =
     scale === 'month'
-      ? buildYearGroups(buildMonthColumns(rangeStart, rangeEnd))
-      : buildMonthGroups(buildDayColumns(rangeStart, rangeEnd, today))
+      ? buildYearGroups(buildMonthColumns(renderRangeStart, rangeEnd))
+      : buildMonthGroups(buildDayColumns(renderRangeStart, rangeEnd, today))
   const superRowHeight = superGroups.length > 0 ? MONTH_ROW_HEIGHT : 0
   const showTodayLine = today >= rangeStart && today <= rangeEnd
   // Center the line in whichever column contains today, rather than sitting
   // on its left edge.
-  const todayX = dateToX(today, rangeStart, scale)
+  const todayX = dateToX(today, renderRangeStart, scale)
   const todayColumn = [...columns].reverse().find((column) => todayX >= column.x)
   const todayLineX = todayColumn ? todayColumn.x + todayColumn.width / 2 : todayX
 
@@ -127,8 +145,8 @@ export function GanttWorkspace({
   // Kept fresh on every render so the unmount cleanup below (registered
   // once, at mount) reads the scale/rangeStart in effect when the user
   // actually navigates away, not whatever they were when the page opened.
-  const latest = useRef({ scale, rangeStart })
-  latest.current = { scale, rangeStart }
+  const latest = useRef({ scale, rangeStart: renderRangeStart })
+  latest.current = { scale, rangeStart: renderRangeStart }
   // By the time an unmount cleanup runs, the element may already be
   // detached — a detached element's scrollLeft always reads back as 0. A
   // scroll listener keeps this ref current while it's still attached, so
@@ -162,7 +180,7 @@ export function GanttWorkspace({
   }, [])
 
   return (
-    <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto bg-white">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
             horizontally. z-50 keeps it above every right-pane layer,
@@ -196,6 +214,7 @@ export function GanttWorkspace({
               status={deriveStatus(node, today)}
               assigneeNames={assigneesByTaskUid.get(node.uid) ?? ''}
               onEdit={() => onEditTask(node.uid)}
+              onStartChange={(isoDate) => onStartChange(node.uid, isoDate)}
               onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
               isHovered={hoveredUid === node.uid}
               onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
@@ -231,12 +250,17 @@ export function GanttWorkspace({
               {columns.map((column) => (
                 <div
                   key={column.key}
-                  className="flex shrink-0 items-end justify-center border-l border-[#e2e8f0] pb-1 text-[11px] font-medium first:border-l-0"
+                  className="flex shrink-0 items-center justify-center border-l border-[#e2e8f0] text-[11px] font-medium first:border-l-0"
                   style={{
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
                     fontWeight: column.isToday ? 700 : 500,
-                    backgroundColor: column.key === hoveredColumnKey ? 'rgba(37, 99, 235, 0.08)' : undefined,
+                    backgroundColor:
+                      column.key === hoveredColumnKey
+                        ? 'rgba(37, 99, 235, 0.08)'
+                        : column.isWeekend
+                          ? '#f8fafc'
+                          : undefined,
                   }}
                 >
                   {column.label}
@@ -246,7 +270,7 @@ export function GanttWorkspace({
           </div>
 
           <div
-            className="relative"
+            className="relative z-0"
             onMouseMove={(e) => {
               const x = e.clientX - e.currentTarget.getBoundingClientRect().left
               const column = columns.find((c) => x >= c.x && x < c.x + c.width)
@@ -254,15 +278,37 @@ export function GanttWorkspace({
             }}
             onMouseLeave={() => setHoveredColumnKey(null)}
           >
-            {/* Layer 1: group/stage row backgrounds — normal flow, defines
-                the stack's total height for layers 2-4 below. */}
-            <div className="relative z-0">
+            {/* This wrapper has its own z-index (not just `relative`) so it
+                forms a stacking context: layers 1-5 below stay contained
+                between z-0 and z-30 without a negative z-index escaping past
+                this component into the page's stacking order. */}
+
+            {/* Layer 1: weekend column shading (day scale only — week/month
+                columns don't map to a single day). Sits below everything
+                else, including the group/stage row fills, so it only shows
+                through their transparent (plain task row) gaps instead of
+                washing out a group's own background color. */}
+            <div className="absolute inset-0 z-0">
+              {columns
+                .filter((column) => column.isWeekend)
+                .map((column) => (
+                  <div
+                    key={column.key}
+                    className="absolute inset-y-0 bg-[#f8fafc]"
+                    style={{ left: column.x, width: column.width }}
+                  />
+                ))}
+            </div>
+
+            {/* Layer 2: group/stage row backgrounds — normal flow, defines
+                the stack's total height for layers 3-5 below. */}
+            <div className="relative z-[1]">
               {visible.map((node) => (
                 <GanttRowTimelineBackground key={node.uid} node={node} density={density} />
               ))}
             </div>
 
-            {/* Layer 2: column gridlines (day/week/month), with the current
+            {/* Layer 3: column gridlines (day/week/month), with the current
                 scale's super-header boundaries (month for day/week, year for
                 month) emphasized */}
             <div className="absolute inset-0 z-10">
@@ -280,7 +326,7 @@ export function GanttWorkspace({
                 ))}
             </div>
 
-            {/* Layer 3: today line — dashed, centered in its column */}
+            {/* Layer 4: today line — dashed, centered in its column */}
             {showTodayLine && (
               <div
                 className="absolute inset-y-0 z-20"
@@ -288,7 +334,7 @@ export function GanttWorkspace({
               />
             )}
 
-            {/* Layer 4: task/group bars, on top of everything */}
+            {/* Layer 5: task/group bars, on top of everything */}
             <div className="absolute inset-0 z-30">
               {visible.map((node, index) => (
                 <GanttRowBar
@@ -296,11 +342,14 @@ export function GanttWorkspace({
                   node={node}
                   density={density}
                   scale={scale}
-                  rangeStart={rangeStart}
+                  rangeStart={renderRangeStart}
                   status={deriveStatus(node, today)}
                   top={rowTops[index]}
                   isHovered={hoveredUid === node.uid}
                   onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
+                  onEdit={() => onEditTask(node.uid)}
+                  onStartChange={(isoDate) => onStartChange(node.uid, isoDate)}
+                  onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
                 />
               ))}
             </div>
