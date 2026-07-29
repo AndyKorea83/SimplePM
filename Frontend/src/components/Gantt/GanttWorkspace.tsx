@@ -84,6 +84,7 @@ export function GanttWorkspace({
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
   const [hoveredUid, setHoveredUid] = useState<number | null>(null)
+  const [hoveredColumnKey, setHoveredColumnKey] = useState<number | null>(null)
 
   const columns = buildRenderColumns(scale, rangeStart, rangeEnd, today)
   const timelineWidth = columns.reduce((sum, column) => sum + column.width, 0)
@@ -235,6 +236,7 @@ export function GanttWorkspace({
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
                     fontWeight: column.isToday ? 700 : 500,
+                    backgroundColor: column.key === hoveredColumnKey ? 'rgba(37, 99, 235, 0.08)' : undefined,
                   }}
                 >
                   {column.label}
@@ -243,7 +245,15 @@ export function GanttWorkspace({
             </div>
           </div>
 
-          <div className="relative">
+          <div
+            className="relative"
+            onMouseMove={(e) => {
+              const x = e.clientX - e.currentTarget.getBoundingClientRect().left
+              const column = columns.find((c) => x >= c.x && x < c.x + c.width)
+              setHoveredColumnKey(column?.key ?? null)
+            }}
+            onMouseLeave={() => setHoveredColumnKey(null)}
+          >
             {/* Layer 1: group/stage row backgrounds — normal flow, defines
                 the stack's total height for layers 2-4 below. */}
             <div className="relative z-0">
