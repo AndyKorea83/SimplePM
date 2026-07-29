@@ -244,8 +244,18 @@ export function GanttPage() {
     )
   }
 
-  const rangeStart = new Date(project.startDate)
-  const rangeEnd = new Date(project.finishDate)
+  // project.startDate/finishDate come straight from the XML import and never
+  // move afterward — if a task's dates are dragged/edited past them, the
+  // rendered grid (built from these two dates) wouldn't extend far enough to
+  // show it. Widen the range to always cover every task's actual dates too.
+  const rangeStart = project.tasks.reduce((min, t) => {
+    const start = new Date(t.start)
+    return start < min ? start : min
+  }, new Date(project.startDate))
+  const rangeEnd = project.tasks.reduce((max, t) => {
+    const finish = new Date(t.finish)
+    return finish > max ? finish : max
+  }, new Date(project.finishDate))
 
   const formInitialValues: TaskFormValues | null =
     formState === null
