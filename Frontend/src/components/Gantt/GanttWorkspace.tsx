@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   buildDayColumns,
   buildMonthColumns,
@@ -82,6 +82,7 @@ export function GanttWorkspace({
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
+  const [hoveredUid, setHoveredUid] = useState<number | null>(null)
 
   const columns = buildRenderColumns(scale, rangeStart, rangeEnd, today)
   const timelineWidth = columns.reduce((sum, column) => sum + column.width, 0)
@@ -188,6 +189,8 @@ export function GanttWorkspace({
               assigneeNames={assigneesByTaskUid.get(node.uid) ?? ''}
               onEdit={() => onEditTask(node.uid)}
               onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
+              isHovered={hoveredUid === node.uid}
+              onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
             />
           ))}
         </div>
@@ -275,6 +278,8 @@ export function GanttWorkspace({
                   rangeStart={rangeStart}
                   status={deriveStatus(node, today)}
                   top={rowTops[index]}
+                  isHovered={hoveredUid === node.uid}
+                  onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
                 />
               ))}
             </div>
