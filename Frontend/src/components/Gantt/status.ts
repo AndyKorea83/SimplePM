@@ -1,3 +1,4 @@
+import { startOfDay } from './dateGrid'
 import type { TaskDTO } from './types'
 
 export type TaskStatus = 'complete' | 'inWork' | 'planned' | 'overdue' | 'blocked'
@@ -23,7 +24,10 @@ export const STATUS_COLORS: Record<TaskStatus, string> = {
 export function deriveStatus(task: TaskDTO, today: Date): TaskStatus {
   if (task.isBlocked) return 'blocked'
   if (task.percentComplete >= 100) return 'complete'
-  if (new Date(task.finish) < today && task.percentComplete < 100) return 'overdue'
+  // Compare calendar days only — a task finishing "today" (regardless of
+  // its stored time-of-day) is not yet overdue; it becomes overdue only
+  // once its finish day is strictly in the past.
+  if (startOfDay(new Date(task.finish)) < startOfDay(today) && task.percentComplete < 100) return 'overdue'
   if (task.percentComplete > 0) return 'inWork'
   return 'planned'
 }
