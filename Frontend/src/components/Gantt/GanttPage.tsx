@@ -282,25 +282,19 @@ export function GanttPage() {
         onAssigneeFilterChange={setAssigneeFilter}
         onAddTask={openCreateForm}
       />
-      {scale === 'month' ? (
-        <div className="flex flex-1 items-center justify-center bg-white">
-          <p className="text-[14px] text-[#94a3b8]">Масштаб «Месяцы» пока в разработке</p>
-        </div>
-      ) : (
-        <GanttWorkspace
-          roots={filteredRoots}
-          scale={scale}
-          density={density}
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapse}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          today={today}
-          assigneesByTaskUid={assigneesByTaskUid}
-          onEditTask={openEditForm}
-          onFinishChange={handleFinishChange}
-        />
-      )}
+      <GanttWorkspace
+        roots={filteredRoots}
+        scale={scale}
+        density={density}
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapse}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+        today={today}
+        assigneesByTaskUid={assigneesByTaskUid}
+        onEditTask={openEditForm}
+        onFinishChange={handleFinishChange}
+      />
       <BottomStatusBar
         totalTasks={totalTasks}
         completedPercent={completedPercent}

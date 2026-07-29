@@ -6,17 +6,22 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
 // scale (from Figma: day columns are 30px/1 day, week columns ~84px/7 days).
 // pxPerDay derives from these so bar positioning stays a single formula
 // across scales instead of branching per scale everywhere it's used.
-const COLUMN: Record<GanttScale, { width: number; days: number }> = {
+// Month has no Figma design — months have a variable day count, so unlike
+// day/week its columns aren't a uniform width; only the px-per-day rate is
+// fixed here (buildMonthColumns derives each column's actual width from it).
+const COLUMN: Record<'day' | 'week', { width: number; days: number }> = {
   day: { width: 30, days: 1 },
   week: { width: 84, days: 7 },
-  month: { width: 30, days: 1 }, // unused: month scale has no design yet
 }
+const MONTH_PX_PER_DAY = 4
 
 export function pxPerDay(scale: GanttScale): number {
+  if (scale === 'month') return MONTH_PX_PER_DAY
   return COLUMN[scale].width / COLUMN[scale].days
 }
 
-export function columnWidth(scale: GanttScale): number {
+// Meaningful only for day/week, whose columns are uniform width.
+export function columnWidth(scale: 'day' | 'week'): number {
   return COLUMN[scale].width
 }
 
@@ -98,9 +103,10 @@ const MONTH_NAMES_FULL = [
 
 export type MonthGroup = { label: string; startIndex: number; days: number }
 
-// Groups consecutive day columns by calendar month, for the day-scale
-// header's month row and for marking month-boundary gridlines.
-export function buildMonthGroups(columns: DayColumn[]): MonthGroup[] {
+// Groups consecutive days by calendar month, for the day-scale header's
+// month row, for marking month-boundary gridlines, and (via
+// buildMonthColumns below) as the columns of the month scale itself.
+export function buildMonthGroups(columns: { date: Date }[]): MonthGroup[] {
   const groups: MonthGroup[] = []
   let prevKey = ''
 
@@ -119,4 +125,20 @@ export function buildMonthGroups(columns: DayColumn[]): MonthGroup[] {
   })
 
   return groups
+}
+
+// The month scale's columns: one per calendar month covered by the range,
+// each spanning its actual (possibly partial, at the range's edges) day
+// count. group.startIndex is a day-offset from `start`, so a column's pixel
+// position is startIndex * pxPerDay('month') — the same formula dateToX
+// uses — keeping bars aligned with these variable-width columns.
+export function buildMonthColumns(start: Date, end: Date): MonthGroup[] {
+  const days: { date: Date }[] = []
+  const cursor = startOfDay(start)
+  const last = startOfDay(end)
+  while (cursor <= last) {
+    days.push({ date: new Date(cursor) })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return buildMonthGroups(days)
 }

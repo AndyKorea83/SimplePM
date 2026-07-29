@@ -1,28 +1,61 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   buildDayColumns,
+  buildMonthColumns,
   buildMonthGroups,
   buildWeekColumns,
   columnWidth,
   dateToX,
+  pxPerDay,
   xToDate,
-  type DayColumn,
 } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { flattenVisible } from './buildTaskTree'
 import { GanttRowBar, GanttRowLeft, GanttRowTimelineBackground, rowHeightOf } from './GanttRow'
 import { deriveStatus } from './status'
-import type { GanttDensity, GanttTaskNode } from './types'
-
-type TimelineScale = 'day' | 'week'
+import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
 const LEFT_PANE_WIDTH = 710
 const MONTH_ROW_HEIGHT = 24
 const INITIAL_DATE_STORAGE_KEY = 'gantt-initial-date'
 
+// A uniform shape for one timeline column regardless of scale — day/week
+// columns are all the same width, month columns aren't (months have
+// different day counts), so header/gridlines/today-line render off this
+// instead of a single shared `width`.
+type RenderColumn = { key: number; x: number; width: number; label: string; isToday?: boolean }
+
+function buildRenderColumns(scale: GanttScale, rangeStart: Date, rangeEnd: Date, today: Date): RenderColumn[] {
+  if (scale === 'month') {
+    const monthPxPerDay = pxPerDay(scale)
+    return buildMonthColumns(rangeStart, rangeEnd).map((group) => ({
+      key: group.startIndex,
+      x: group.startIndex * monthPxPerDay,
+      width: group.days * monthPxPerDay,
+      label: group.label,
+    }))
+  }
+  const width = columnWidth(scale)
+  if (scale === 'day') {
+    return buildDayColumns(rangeStart, rangeEnd, today).map((column, index) => ({
+      key: index,
+      x: index * width,
+      width,
+      label: column.label,
+      isToday: column.isToday,
+    }))
+  }
+  return buildWeekColumns(rangeStart, rangeEnd).map((column, index) => ({
+    key: index,
+    x: index * width,
+    width,
+    label: column.label,
+  }))
+}
+
 type GanttWorkspaceProps = {
   roots: GanttTaskNode[]
-  scale: TimelineScale
+  scale: GanttScale
   density: GanttDensity
   collapsed: ReadonlySet<number>
   onToggleCollapse: (uid: number) => void
@@ -49,19 +82,20 @@ export function GanttWorkspace({
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
-  const width = columnWidth(scale)
   const [hoveredUid, setHoveredUid] = useState<number | null>(null)
 
-  const columns =
-    scale === 'day' ? buildDayColumns(rangeStart, rangeEnd, today) : buildWeekColumns(rangeStart, rangeEnd)
-  const timelineWidth = columns.length * width
-  const monthGroups = scale === 'day' ? buildMonthGroups(columns as DayColumn[]) : []
-  const monthRowHeight = scale === 'day' ? MONTH_ROW_HEIGHT : 0
+  const columns = buildRenderColumns(scale, rangeStart, rangeEnd, today)
+  const timelineWidth = columns.reduce((sum, column) => sum + column.width, 0)
+  // Day scale gets an extra header row grouping its day columns by calendar
+  // month; week/month scales have no such super-header.
+  const dayScaleMonthGroups = scale === 'day' ? buildMonthGroups(buildDayColumns(rangeStart, rangeEnd, today)) : []
+  const monthRowHeight = dayScaleMonthGroups.length > 0 ? MONTH_ROW_HEIGHT : 0
   const showTodayLine = today >= rangeStart && today <= rangeEnd
-  // Center the line in whichever day/week column contains today, rather
-  // than sitting on its left edge.
-  const todayColumnStart = Math.floor(dateToX(today, rangeStart, scale) / width) * width
-  const todayLineX = todayColumnStart + width / 2
+  // Center the line in whichever column contains today, rather than sitting
+  // on its left edge.
+  const todayX = dateToX(today, rangeStart, scale)
+  const todayColumn = [...columns].reverse().find((column) => todayX >= column.x)
+  const todayLineX = todayColumn ? todayColumn.x + todayColumn.width / 2 : todayX
 
   const rowTops: number[] = []
   {
@@ -169,13 +203,13 @@ export function GanttWorkspace({
               left pane's z-50 so it correctly hides under the frozen
               columns during horizontal scroll. */}
           <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
-            {monthGroups.length > 0 && (
+            {dayScaleMonthGroups.length > 0 && (
               <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: monthRowHeight }}>
-                {monthGroups.map((group) => (
+                {dayScaleMonthGroups.map((group) => (
                   <div
                     key={group.startIndex}
                     className="flex shrink-0 items-center border-l border-[#e2e8f0] px-2 text-[11px] font-semibold text-[#475569] first:border-l-0"
-                    style={{ width: group.days * width }}
+                    style={{ width: group.days * pxPerDay('day') }}
                   >
                     {group.label}
                   </div>
@@ -183,18 +217,19 @@ export function GanttWorkspace({
               </div>
             )}
             <div className="flex shrink-0" style={{ height: metrics.headerHeight }}>
-              {columns.map((column, index) => {
-                const isToday = scale === 'day' && 'isToday' in column && column.isToday
-                return (
-                  <div
-                    key={index}
-                    className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
-                    style={{ width, color: isToday ? '#ef4444' : '#94a3b8', fontWeight: isToday ? 700 : 500 }}
-                  >
-                    {column.label}
-                  </div>
-                )
-              })}
+              {columns.map((column) => (
+                <div
+                  key={column.key}
+                  className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
+                  style={{
+                    width: column.width,
+                    color: column.isToday ? '#ef4444' : '#94a3b8',
+                    fontWeight: column.isToday ? 700 : 500,
+                  }}
+                >
+                  {column.label}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -207,18 +242,19 @@ export function GanttWorkspace({
               ))}
             </div>
 
-            {/* Layer 2: day/week gridlines, with month boundaries emphasized */}
+            {/* Layer 2: column gridlines (day/week/month), with day-scale's
+                month boundaries emphasized */}
             <div className="absolute inset-0 z-10">
-              {columns.map((_, index) => (
-                <div key={index} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: index * width }} />
+              {columns.map((column) => (
+                <div key={column.key} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: column.x }} />
               ))}
-              {monthGroups
+              {dayScaleMonthGroups
                 .filter((group) => group.startIndex > 0)
                 .map((group) => (
                   <div
                     key={group.startIndex}
                     className="absolute inset-y-0 w-px bg-[#cbd5e1]"
-                    style={{ left: group.startIndex * width }}
+                    style={{ left: group.startIndex * pxPerDay('day') }}
                   />
                 ))}
             </div>
