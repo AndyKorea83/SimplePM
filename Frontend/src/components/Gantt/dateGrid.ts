@@ -42,6 +42,26 @@ export function durationToWidth(start: Date, finish: Date, scale: GanttScale): n
   return Math.max(daysBetween(start, finish), 0) * pxPerDay(scale)
 }
 
+// Pushes the project's actual start date back to the start of its coarser
+// unit for week/month scale, so the first rendered column is a whole week
+// (Monday-start) or a whole month — never a partial one — even though the
+// project itself may genuinely start mid-week/mid-month. Day scale is left
+// untouched (every day already starts its own column). Used as the
+// reference `rangeStart` for building columns/gridlines/bars so they all
+// share the same (possibly earlier-than-actual) origin.
+export function alignedRangeStart(rangeStart: Date, scale: GanttScale): Date {
+  if (scale === 'month') {
+    return new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
+  }
+  if (scale === 'week') {
+    const daysSinceMonday = (rangeStart.getDay() + 6) % 7
+    const aligned = startOfDay(rangeStart)
+    aligned.setDate(aligned.getDate() - daysSinceMonday)
+    return aligned
+  }
+  return rangeStart
+}
+
 // Inverse of dateToX: the date at horizontal offset x from rangeStart.
 export function xToDate(x: number, rangeStart: Date, scale: GanttScale): Date {
   const days = Math.round(x / pxPerDay(scale))
