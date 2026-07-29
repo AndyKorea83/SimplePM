@@ -10,6 +10,7 @@ import (
 	deliveryhttp "github.com/AndyKorea83/SimplePM/src/Backend/internal/delivery/http"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository/memstore"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository/mspdi"
+	"github.com/AndyKorea83/SimplePM/src/Backend/internal/timesheet"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/usecase"
 )
 
@@ -29,7 +30,13 @@ func main() {
 	}
 	store := memstore.NewRepository(initial)
 	service := usecase.NewProjectService(store)
-	router := deliveryhttp.NewRouter(service)
+
+	// The "Календарь" page's time-tracking data is independent of the Gantt
+	// project (see internal/timesheet) — no XML source for it yet, so it's
+	// a synthetic dataset generated once at startup.
+	timesheetService := usecase.NewTimesheetService(timesheet.Generate(), timesheet.RangeStart, timesheet.RangeEnd)
+
+	router := deliveryhttp.NewRouter(service, timesheetService)
 
 	log.Printf("listening on %s (project data: %s)", addr, xmlPath)
 	if err := http.ListenAndServe(addr, router); err != nil {
