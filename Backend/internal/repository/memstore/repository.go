@@ -118,7 +118,6 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	}
 	task.Start = start
 	task.Finish = finish
-	task.Duration = finish.Sub(start)
 	if input.PercentComplete != nil {
 		task.PercentComplete = *input.PercentComplete
 	}

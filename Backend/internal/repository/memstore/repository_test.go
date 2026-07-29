@@ -143,6 +143,25 @@ func TestUpdateTask_PartialFields(t *testing.T) {
 	}
 }
 
+func TestUpdateTask_PreservesDurationOnDateChange(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	newStart := time.Date(2026, 6, 3, 8, 0, 0, 0, time.UTC)
+	newFinish := time.Date(2026, 6, 12, 17, 0, 0, 0, time.UTC)
+	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Start: &newStart, Finish: &newFinish})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	// Duration is effort-hours (from the MSPDI import), independent of the
+	// calendar gap between Start and Finish — moving either must not
+	// recompute it as finish.Sub(start), or the displayed estimate would
+	// drift every time a date is edited.
+	if updated.Duration != 0 {
+		t.Errorf("Duration = %v, want unchanged (0, the fixture's original value)", updated.Duration)
+	}
+}
+
 func TestUpdateTask_ReplacesAssignments(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
