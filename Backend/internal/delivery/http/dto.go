@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
+	"github.com/AndyKorea83/SimplePM/src/Backend/internal/usecase"
 )
 
 // The DTOs below are the HTTP API's own view of project data — kept
@@ -121,6 +122,65 @@ func newTaskDTO(t entity.Task) taskDTO {
 		IsSummary:       t.IsSummary,
 		IsBlocked:       t.IsBlocked,
 		Dependencies:    deps,
+	}
+}
+
+// The timesheet feature is independent of Project (see internal/timesheet),
+// so its DTOs map off usecase.TimesheetMonth rather than entity.*.
+
+type timesheetMonthDTO struct {
+	Year        int                    `json:"year"`
+	Month       int                    `json:"month"`
+	DaysInMonth int                    `json:"daysInMonth"`
+	Employees   []timesheetEmployeeDTO `json:"employees"`
+}
+
+type timesheetEmployeeDTO struct {
+	UID         int                 `json:"uid"`
+	Name        string              `json:"name"`
+	DailyTotals []int               `json:"dailyTotals"`
+	TotalHours  int                 `json:"totalHours"`
+	Themes      []timesheetThemeDTO `json:"themes"`
+}
+
+type timesheetThemeDTO struct {
+	UID         int                `json:"uid"`
+	Name        string             `json:"name"`
+	DailyTotals []int              `json:"dailyTotals"`
+	Tasks       []timesheetTaskDTO `json:"tasks"`
+}
+
+type timesheetTaskDTO struct {
+	UID        int    `json:"uid"`
+	Name       string `json:"name"`
+	DailyHours []int  `json:"dailyHours"`
+}
+
+func newTimesheetMonthDTO(m *usecase.TimesheetMonth) timesheetMonthDTO {
+	employees := make([]timesheetEmployeeDTO, 0, len(m.Employees))
+	for _, emp := range m.Employees {
+		themes := make([]timesheetThemeDTO, 0, len(emp.Themes))
+		for _, th := range emp.Themes {
+			tasks := make([]timesheetTaskDTO, 0, len(th.Tasks))
+			for _, task := range th.Tasks {
+				tasks = append(tasks, timesheetTaskDTO{UID: task.UID, Name: task.Name, DailyHours: task.DailyHours})
+			}
+			themes = append(themes, timesheetThemeDTO{UID: th.UID, Name: th.Name, DailyTotals: th.DailyTotals, Tasks: tasks})
+		}
+		employees = append(employees, timesheetEmployeeDTO{
+			UID:         emp.UID,
+			Name:        emp.Name,
+			DailyTotals: emp.DailyTotals,
+			TotalHours:  emp.TotalHours,
+			Themes:      themes,
+		})
+	}
+
+	return timesheetMonthDTO{
+		Year:        m.Year,
+		Month:       m.Month,
+		DaysInMonth: m.DaysInMonth,
+		Employees:   employees,
 	}
 }
 

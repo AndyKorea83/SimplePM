@@ -1,4 +1,4 @@
-export type NavKey = 'dashboard' | 'gantt' | 'tasks' | 'team' | 'settings'
+export type NavKey = 'board' | 'calendar' | 'gantt' | 'tasks' | 'team' | 'qa' | 'embedded'
 
 export type NavRoute = {
   key: NavKey
@@ -6,10 +6,14 @@ export type NavRoute = {
   path: string
 }
 
+// Matches the Figma "timesheet-page - light" sidebar: Проекты is gone, and
+// Настройки/Дашборд are replaced by this exact set/order.
 export const NAV_ROUTES: NavRoute[] = [
-  { key: 'dashboard', label: 'Дашборд', path: '/dashboard' },
-  { key: 'gantt', label: 'Диаграмма Ганта', path: '/gantt' },
+  { key: 'board', label: 'Доска', path: '/board' },
+  { key: 'calendar', label: 'Время', path: '/calendar' },
+  { key: 'gantt', label: 'Гантт', path: '/gantt' },
   { key: 'tasks', label: 'Задачи', path: '/tasks' },
   { key: 'team', label: 'Команда', path: '/team' },
-  { key: 'settings', label: 'Настройки', path: '/settings' },
+  { key: 'qa', label: 'QA', path: '/qa' },
+  { key: 'embedded', label: 'Embedded', path: '/embedded' },
 ]

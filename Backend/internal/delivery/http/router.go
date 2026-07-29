@@ -11,7 +11,7 @@ import (
 )
 
 // NewRouter builds the application's chi router.
-func NewRouter(projectService usecase.ProjectService) http.Handler {
+func NewRouter(projectService usecase.ProjectService, timesheetService usecase.TimesheetService) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -29,6 +29,7 @@ func NewRouter(projectService usecase.ProjectService) http.Handler {
 
 	projectHandler := NewProjectHandler(projectService)
 	taskHandler := NewTaskHandler(projectService)
+	timesheetHandler := NewTimesheetHandler(timesheetService)
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/project", projectHandler.GetProject)
 		r.Route("/tasks", func(r chi.Router) {
@@ -36,6 +37,7 @@ func NewRouter(projectService usecase.ProjectService) http.Handler {
 			r.Patch("/{uid}", taskHandler.UpdateTask)
 			r.Delete("/{uid}", taskHandler.DeleteTask)
 		})
+		r.Get("/timesheet", timesheetHandler.GetMonth)
 	})
 
 	return r
