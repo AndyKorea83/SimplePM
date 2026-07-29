@@ -246,7 +246,7 @@ export function GanttWorkspace({
                 month boundaries emphasized */}
             <div className="absolute inset-0 z-10">
               {columns.map((column) => (
-                <div key={column.key} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: column.x }} />
+                <div key={column.key} className="absolute inset-y-0 w-px bg-[#e2e8f0]" style={{ left: column.x }} />
               ))}
               {dayScaleMonthGroups
                 .filter((group) => group.startIndex > 0)
