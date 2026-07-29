@@ -220,7 +220,7 @@ export function GanttWorkspace({
               {columns.map((column) => (
                 <div
                   key={column.key}
-                  className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
+                  className="flex shrink-0 items-end justify-center border-l border-[#e2e8f0] pb-1 text-[11px] font-medium first:border-l-0"
                   style={{
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
@@ -246,7 +246,7 @@ export function GanttWorkspace({
                 month boundaries emphasized */}
             <div className="absolute inset-0 z-10">
               {columns.map((column) => (
-                <div key={column.key} className="absolute inset-y-0 w-px bg-[#e2e8f0]" style={{ left: column.x }} />
+                <div key={column.key} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: column.x }} />
               ))}
               {dayScaleMonthGroups
                 .filter((group) => group.startIndex > 0)
