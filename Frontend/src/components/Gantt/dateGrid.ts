@@ -47,8 +47,10 @@ export function dateToX(date: Date, rangeStart: Date, scale: GanttScale): number
   return daysBetween(rangeStart, date) * pxPerDay(scale)
 }
 
+// finish is inclusive — a task starting and finishing on the same calendar
+// day still spans that one full day, not zero width, so +1 day here.
 export function durationToWidth(start: Date, finish: Date, scale: GanttScale): number {
-  return Math.max(daysBetween(start, finish), 0) * pxPerDay(scale)
+  return Math.max(daysBetween(start, finish) + 1, 0) * pxPerDay(scale)
 }
 
 // Pushes the project's actual start date back to the start of its coarser
