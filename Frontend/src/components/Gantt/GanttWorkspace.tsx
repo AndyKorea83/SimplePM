@@ -180,7 +180,7 @@ export function GanttWorkspace({
   }, [])
 
   return (
-    <div ref={scrollRef} className="flex min-h-0 flex-1 overflow-auto bg-white">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
             horizontally. z-50 keeps it above every right-pane layer,
