@@ -220,7 +220,7 @@ export function GanttWorkspace({
               {columns.map((column) => (
                 <div
                   key={column.key}
-                  className="flex shrink-0 items-end justify-center pb-1 text-[11px] font-medium"
+                  className="flex shrink-0 items-end justify-center border-l border-[#e2e8f0] pb-1 text-[11px] font-medium first:border-l-0"
                   style={{
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
