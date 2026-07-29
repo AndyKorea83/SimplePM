@@ -24,7 +24,14 @@ const INITIAL_DATE_STORAGE_KEY = 'gantt-initial-date'
 // columns are all the same width, month columns aren't (months have
 // different day counts), so header/gridlines/today-line render off this
 // instead of a single shared `width`.
-type RenderColumn = { key: number; x: number; width: number; label: string; isToday?: boolean }
+type RenderColumn = {
+  key: number
+  x: number
+  width: number
+  label: string
+  isToday?: boolean
+  isWeekend?: boolean
+}
 
 function buildRenderColumns(scale: GanttScale, rangeStart: Date, rangeEnd: Date, today: Date): RenderColumn[] {
   if (scale === 'month') {
@@ -44,6 +51,7 @@ function buildRenderColumns(scale: GanttScale, rangeStart: Date, rangeEnd: Date,
       width,
       label: column.label,
       isToday: column.isToday,
+      isWeekend: column.isWeekend,
     }))
   }
   return buildWeekColumns(rangeStart, rangeEnd).map((column, index) => ({
@@ -239,7 +247,12 @@ export function GanttWorkspace({
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
                     fontWeight: column.isToday ? 700 : 500,
-                    backgroundColor: column.key === hoveredColumnKey ? 'rgba(37, 99, 235, 0.08)' : undefined,
+                    backgroundColor:
+                      column.key === hoveredColumnKey
+                        ? 'rgba(37, 99, 235, 0.08)'
+                        : column.isWeekend
+                          ? '#f8fafc'
+                          : undefined,
                   }}
                 >
                   {column.label}
@@ -265,7 +278,21 @@ export function GanttWorkspace({
               ))}
             </div>
 
-            {/* Layer 2: column gridlines (day/week/month), with the current
+            {/* Layer 2: weekend column shading (day scale only — week/month
+                columns don't map to a single day) */}
+            <div className="absolute inset-0 z-[5]">
+              {columns
+                .filter((column) => column.isWeekend)
+                .map((column) => (
+                  <div
+                    key={column.key}
+                    className="absolute inset-y-0 bg-[#f8fafc]"
+                    style={{ left: column.x, width: column.width }}
+                  />
+                ))}
+            </div>
+
+            {/* Layer 3: column gridlines (day/week/month), with the current
                 scale's super-header boundaries (month for day/week, year for
                 month) emphasized */}
             <div className="absolute inset-0 z-10">
@@ -283,7 +310,7 @@ export function GanttWorkspace({
                 ))}
             </div>
 
-            {/* Layer 3: today line — dashed, centered in its column */}
+            {/* Layer 4: today line — dashed, centered in its column */}
             {showTodayLine && (
               <div
                 className="absolute inset-y-0 z-20"
@@ -291,7 +318,7 @@ export function GanttWorkspace({
               />
             )}
 
-            {/* Layer 4: task/group bars, on top of everything */}
+            {/* Layer 5: task/group bars, on top of everything */}
             <div className="absolute inset-0 z-30">
               {visible.map((node, index) => (
                 <GanttRowBar

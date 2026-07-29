@@ -50,7 +50,7 @@ export function xToDate(x: number, rangeStart: Date, scale: GanttScale): Date {
   return date
 }
 
-export type DayColumn = { date: Date; label: string; isToday: boolean }
+export type DayColumn = { date: Date; label: string; isToday: boolean; isWeekend: boolean }
 
 export function buildDayColumns(start: Date, end: Date, today: Date): DayColumn[] {
   const columns: DayColumn[] = []
@@ -59,10 +59,12 @@ export function buildDayColumns(start: Date, end: Date, today: Date): DayColumn[
   const todayStart = startOfDay(today)
 
   while (cursor <= last) {
+    const weekday = cursor.getDay()
     columns.push({
       date: new Date(cursor),
       label: String(cursor.getDate()),
       isToday: cursor.getTime() === todayStart.getTime(),
+      isWeekend: weekday === 0 || weekday === 6,
     })
     cursor.setDate(cursor.getDate() + 1)
   }
