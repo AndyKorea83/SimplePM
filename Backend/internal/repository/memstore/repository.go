@@ -167,8 +167,12 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 	return nil
 }
 
+// Compares calendar dates only — imported/edited tasks carry inconsistent
+// times of day (e.g. MSPDI's typical 08:00 start / 17:00 finish vs. a
+// date-only edit landing on midnight), so a same-day task must not be
+// rejected just because its finish happens to carry an earlier time value.
 func validateRange(start, finish time.Time) error {
-	if finish.Before(start) {
+	if truncateToDate(finish).Before(truncateToDate(start)) {
 		return fmt.Errorf("finish %s is before start %s", finish, start)
 	}
 	return nil

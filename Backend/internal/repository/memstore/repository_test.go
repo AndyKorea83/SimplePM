@@ -121,6 +121,22 @@ func TestCreateTask_FinishBeforeStart(t *testing.T) {
 	}
 }
 
+func TestCreateTask_SameDayEarlierFinishTimeAllowed(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	// Same calendar day, but finish's time-of-day (typical MSPDI import: 08:00
+	// start) is earlier than start's (00:00, typical of a date-only edit) —
+	// must still be accepted since the calendar dates aren't out of order.
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:   "Same day",
+		Start:  time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC),
+		Finish: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Errorf("CreateTask: unexpected error for a same-calendar-day range: %v", err)
+	}
+}
+
 func TestUpdateTask_PartialFields(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
