@@ -1,11 +1,17 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
 import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
-import { dateToX, durationToWidth, formatDayMonth } from './dateGrid'
+import { dateToX, durationToWidth, formatDayMonth, pxPerDay, toDateInputValue } from './dateGrid'
 import { STATUS_COLORS, type TaskStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
 
 export function StatusSquare({ status }: { status: TaskStatus }) {
   const color = STATUS_COLORS[status]
@@ -208,7 +214,11 @@ type GanttRowBarProps = {
   isHovered: boolean
   onHoverChange: (hovering: boolean) => void
   onEdit: () => void
+  onStartChange: (isoDate: string) => void
+  onFinishChange: (isoDate: string) => void
 }
+
+type EdgeDrag = { edge: 'start' | 'finish'; deltaDays: number }
 
 // Top layer: the task/group bar itself, absolutely positioned at this row's
 // cumulative offset within the shared bar-overlay layer. This wrapper also
@@ -226,16 +236,54 @@ export function GanttRowBar({
   isHovered,
   onHoverChange,
   onEdit,
+  onStartChange,
+  onFinishChange,
 }: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
   const height = rowHeightOf(node, density)
-  const left = dateToX(new Date(node.start), rangeStart, scale)
+  const [drag, setDrag] = useState<EdgeDrag | null>(null)
+
+  // While dragging an edge, preview the bar at its dragged position/width —
+  // the actual task dates only change once the drag ends (see beginDrag).
+  const effectiveStart = drag?.edge === 'start' ? addDays(new Date(node.start), drag.deltaDays) : new Date(node.start)
+  const effectiveFinish =
+    drag?.edge === 'finish' ? addDays(new Date(node.finish), drag.deltaDays) : new Date(node.finish)
+
+  const left = dateToX(effectiveStart, rangeStart, scale)
   // A group/stage row spans its children's date range regardless of its own
   // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
   // on summary tasks too, which would otherwise collapse the aggregate bar
   // to a single point.
   const isPointInTime = node.isMilestone && !node.isSummary
-  const width = isPointInTime ? 0 : durationToWidth(new Date(node.start), new Date(node.finish), scale)
+  const width = isPointInTime ? 0 : durationToWidth(effectiveStart, effectiveFinish, scale)
+
+  // Drags a bar's start or finish edge by whole days, following the mouse
+  // horizontally; committed as a single onStartChange/onFinishChange call
+  // when the mouse is released (not on every pixel of movement).
+  const beginDrag = (edge: 'start' | 'finish') => (e: ReactMouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const startX = e.clientX
+    let deltaDays = 0
+    setDrag({ edge, deltaDays: 0 })
+
+    const handleMove = (moveEvent: globalThis.MouseEvent) => {
+      deltaDays = Math.round((moveEvent.clientX - startX) / pxPerDay(scale))
+      setDrag({ edge, deltaDays })
+    }
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+      setDrag(null)
+      if (deltaDays === 0) return
+      const base = edge === 'start' ? node.start : node.finish
+      const next = toDateInputValue(addDays(new Date(base), deltaDays))
+      if (edge === 'start') onStartChange(next)
+      else onFinishChange(next)
+    }
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+  }
 
   return (
     <div
@@ -265,6 +313,7 @@ export function GanttRowBar({
           status={status}
           isMilestone={isPointInTime}
           onDoubleClick={onEdit}
+          onEdgeMouseDown={isPointInTime ? undefined : beginDrag}
         />
       )}
     </div>

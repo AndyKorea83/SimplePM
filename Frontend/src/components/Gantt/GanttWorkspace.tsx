@@ -348,6 +348,8 @@ export function GanttWorkspace({
                   isHovered={hoveredUid === node.uid}
                   onHoverChange={(hovering) => setHoveredUid(hovering ? node.uid : null)}
                   onEdit={() => onEditTask(node.uid)}
+                  onStartChange={(isoDate) => onStartChange(node.uid, isoDate)}
+                  onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
                 />
               ))}
             </div>
