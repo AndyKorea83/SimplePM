@@ -112,7 +112,7 @@ const MONTH_NAMES_FULL = [
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ]
 
-export type MonthGroup = { label: string; startIndex: number; days: number }
+export type MonthGroup = { label: string; startIndex: number; days: number; year: number }
 
 // Groups consecutive days by calendar month, for the day-scale header's
 // month row, for marking month-boundary gridlines, and (via
@@ -131,9 +131,29 @@ export function buildMonthGroups(columns: { date: Date }[]): MonthGroup[] {
       label: `${MONTH_NAMES_FULL[column.date.getMonth()]} ${column.date.getFullYear()}`,
       startIndex: index,
       days: 1,
+      year: column.date.getFullYear(),
     })
     prevKey = key
   })
+
+  return groups
+}
+
+// Groups consecutive month columns by calendar year — the month scale's
+// analogue of buildMonthGroups, one level coarser. Reuses each month's
+// startIndex/days (both day-offsets from the range start), so it slots into
+// the same startIndex/days * pxPerDay(scale) rendering as month groups do.
+export function buildYearGroups(monthGroups: MonthGroup[]): MonthGroup[] {
+  const groups: MonthGroup[] = []
+
+  for (const month of monthGroups) {
+    const last = groups[groups.length - 1]
+    if (last && last.year === month.year) {
+      last.days += month.days
+    } else {
+      groups.push({ label: String(month.year), startIndex: month.startIndex, days: month.days, year: month.year })
+    }
+  }
 
   return groups
 }

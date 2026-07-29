@@ -4,6 +4,7 @@ import {
   buildMonthColumns,
   buildMonthGroups,
   buildWeekColumns,
+  buildYearGroups,
   columnWidth,
   dateToX,
   pxPerDay,
@@ -86,14 +87,16 @@ export function GanttWorkspace({
 
   const columns = buildRenderColumns(scale, rangeStart, rangeEnd, today)
   const timelineWidth = columns.reduce((sum, column) => sum + column.width, 0)
-  // Day and week scales get an extra header row grouping their columns by
-  // calendar month; month scale's own columns already are months, so it has
-  // no such super-header. The grouping is always computed from the day-level
-  // range (calendar months don't depend on scale) and converted to pixels at
-  // this scale's rate, so it lines up with day or week columns alike.
-  const monthSuperGroups =
-    scale === 'day' || scale === 'week' ? buildMonthGroups(buildDayColumns(rangeStart, rangeEnd, today)) : []
-  const monthRowHeight = monthSuperGroups.length > 0 ? MONTH_ROW_HEIGHT : 0
+  // Every scale gets an extra header row grouping its columns by the next
+  // coarser calendar unit: day/week columns group by month, month columns
+  // group by year. Both reuse MonthGroup's startIndex/days (day-offsets
+  // from the range start), so the same startIndex/days * pxPerDay(scale)
+  // rendering below works for either without branching.
+  const superGroups =
+    scale === 'month'
+      ? buildYearGroups(buildMonthColumns(rangeStart, rangeEnd))
+      : buildMonthGroups(buildDayColumns(rangeStart, rangeEnd, today))
+  const superRowHeight = superGroups.length > 0 ? MONTH_ROW_HEIGHT : 0
   const showTodayLine = today >= rangeStart && today <= rangeEnd
   // Center the line in whichever column contains today, rather than sitting
   // on its left edge.
@@ -169,7 +172,7 @@ export function GanttWorkspace({
           style={{ width: LEFT_PANE_WIDTH }}
         >
           <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
-            {monthRowHeight > 0 && <div className="shrink-0" style={{ height: monthRowHeight }} />}
+            {superRowHeight > 0 && <div className="shrink-0" style={{ height: superRowHeight }} />}
             <div
               className="flex shrink-0 items-center gap-3 px-4 text-[12px] font-semibold text-[#94a3b8]"
               style={{ height: metrics.headerHeight }}
@@ -207,9 +210,9 @@ export function GanttWorkspace({
               left pane's z-50 so it correctly hides under the frozen
               columns during horizontal scroll. */}
           <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
-            {monthSuperGroups.length > 0 && (
-              <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: monthRowHeight }}>
-                {monthSuperGroups.map((group) => (
+            {superGroups.length > 0 && (
+              <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: superRowHeight }}>
+                {superGroups.map((group) => (
                   <div
                     key={group.startIndex}
                     className="flex shrink-0 items-center border-l border-[#e2e8f0] px-2 text-[11px] font-semibold text-[#475569] first:border-l-0"
@@ -246,13 +249,14 @@ export function GanttWorkspace({
               ))}
             </div>
 
-            {/* Layer 2: column gridlines (day/week/month), with day/week
-                scales' month boundaries emphasized */}
+            {/* Layer 2: column gridlines (day/week/month), with the current
+                scale's super-header boundaries (month for day/week, year for
+                month) emphasized */}
             <div className="absolute inset-0 z-10">
               {columns.map((column) => (
                 <div key={column.key} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: column.x }} />
               ))}
-              {monthSuperGroups
+              {superGroups
                 .filter((group) => group.startIndex > 0)
                 .map((group) => (
                   <div
