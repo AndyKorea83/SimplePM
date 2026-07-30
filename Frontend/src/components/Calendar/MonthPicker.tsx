@@ -32,14 +32,14 @@ type MonthPickerProps = {
 
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
   return (
-    <div className="flex shrink-0 items-center gap-[2px] rounded-lg bg-[#ebedf2] p-[3px]">
+    <div className="flex shrink-0 items-center gap-[2px] rounded-lg bg-[#ebedf2] p-[3px] dark:bg-[#1c1c1e]">
       {MONTH_OPTIONS.map((option, index) => {
         const isNewYear = index === 0 || option.year !== MONTH_OPTIONS[index - 1].year
         const isActive = option.year === value.year && option.month === value.month
         return (
           <div key={`${option.year}-${option.month}`} className="flex items-center">
             {isNewYear && (
-              <p className="whitespace-nowrap py-[5px] pl-[6px] pr-1 text-[11px] font-bold text-[#0f172a]">
+              <p className="whitespace-nowrap py-[5px] pl-[6px] pr-1 text-[11px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">
                 {option.year}
               </p>
             )}
@@ -47,7 +47,9 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
               type="button"
               onClick={() => onChange(option)}
               className={`cursor-pointer whitespace-nowrap rounded-md px-2 py-[5px] text-[11px] ${
-                isActive ? 'bg-white font-semibold text-[#0f172a]' : 'font-medium text-[#475569]'
+                isActive
+                  ? 'bg-white font-semibold text-[#0f172a] dark:bg-[#2a2a2e] dark:text-[#f2f2f7]'
+                  : 'font-medium text-[#475569] dark:text-[#666e7a]'
               }`}
             >
               {MONTH_LABELS[option.month - 1]}

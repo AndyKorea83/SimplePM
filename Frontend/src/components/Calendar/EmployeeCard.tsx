@@ -1,4 +1,5 @@
 import type { TimesheetEmployeeDTO } from './types'
+import { useTheme } from '../../theme/ThemeContext'
 
 const TASK_COL_WIDTH = 350
 
@@ -15,23 +16,34 @@ type DayCellProps = {
   showZeroAndColor?: boolean
 }
 
+// Figma (187:6001, Timesheet/Employee-Card): dark variant re-tints weekend
+// shading and the full-day/anomaly highlight, but keeps the anomaly text
+// color (#f24d4d) identical to light — only its background opacity changes.
 function DayCell({ value, isWeekend, showZeroAndColor }: DayCellProps) {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   let background: string | undefined
-  let color = '#262933'
+  let color = isDark ? '#f2f2f7' : '#262933'
 
   if (isWeekend) {
-    background = 'rgba(237, 240, 245, 0.4)'
+    background = isDark ? 'rgba(38, 43, 61, 0.5)' : 'rgba(237, 240, 245, 0.4)'
   } else if (showZeroAndColor && value > 0) {
     const isFullDay = value === 8
-    background = isFullDay ? 'rgba(15, 186, 130, 0.1)' : 'rgba(229, 51, 51, 0.1)'
-    color = isFullDay ? '#0d8c61' : '#f24d4d'
+    background = isFullDay
+      ? isDark
+        ? 'rgba(15, 186, 130, 0.15)'
+        : 'rgba(15, 186, 130, 0.1)'
+      : isDark
+        ? 'rgba(229, 51, 51, 0.15)'
+        : 'rgba(229, 51, 51, 0.1)'
+    color = isFullDay ? (isDark ? '#33d499' : '#0d8c61') : '#f24d4d'
   }
 
   const label = value > 0 ? value : showZeroAndColor && !isWeekend ? 0 : ''
 
   return (
     <div
-      className="flex h-full min-w-0 flex-1 flex-col items-center justify-center border-l border-[#e0e3e8]"
+      className="flex h-full min-w-0 flex-1 flex-col items-center justify-center border-l border-[#e0e3e8] dark:border-[#2d313f]"
       style={{ backgroundColor: background }}
     >
       <p className="text-center text-[12px]" style={{ color }}>
@@ -48,36 +60,41 @@ type EmployeeCardProps = {
 }
 
 export function EmployeeCard({ employee, year, month }: EmployeeCardProps) {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
   const days = Array.from({ length: employee.dailyTotals.length }, (_, i) => i + 1)
+  const weekendBg = isDark ? 'rgba(38, 43, 61, 0.5)' : 'rgba(237, 240, 245, 0.4)'
 
   return (
     <div className="flex w-full flex-col items-start px-4">
       <div className="flex w-full items-center justify-between pb-2 pt-5">
-        <p className="text-[14px] font-semibold text-[#262933]">{employee.name}</p>
-        <p className="text-[13px] font-medium text-[#737885]">Часов за месяц: {employee.totalHours}</p>
+        <p className="text-[14px] font-semibold text-[#262933] dark:text-[#f2f2f7]">{employee.name}</p>
+        <p className="text-[13px] font-medium text-[#737885] dark:text-[#999ea8]">
+          Часов за месяц: {employee.totalHours}
+        </p>
       </div>
 
-      <div className="w-full overflow-hidden rounded-xl border border-[#e0e3e8] bg-white">
-        <div className="flex h-11 w-full border-b border-[#e0e3e8]">
+      <div className="w-full overflow-hidden rounded-xl border border-[#e0e3e8] bg-white dark:border-[#2d313f] dark:bg-[#1d1f27]">
+        <div className="flex h-11 w-full border-b border-[#e0e3e8] dark:border-[#2d313f] dark:bg-[#1e2230]">
           <div className="flex h-full shrink-0 items-center px-4" style={{ width: TASK_COL_WIDTH }}>
-            <p className="truncate text-[14px] font-medium text-[#262933]">Задачи</p>
+            <p className="truncate text-[14px] font-medium text-[#262933] dark:text-[#f2f2f7]">Задачи</p>
           </div>
           <div className="flex h-full min-w-0 flex-1">
             {days.map((day) => (
               <div
                 key={day}
-                className="flex h-full min-w-0 flex-1 flex-col items-center justify-center border-l border-[#e0e3e8]"
-                style={{ backgroundColor: isWeekendDay(year, month, day) ? 'rgba(237, 240, 245, 0.4)' : undefined }}
+                className="flex h-full min-w-0 flex-1 flex-col items-center justify-center border-l border-[#e0e3e8] dark:border-[#2d313f]"
+                style={{ backgroundColor: isWeekendDay(year, month, day) ? weekendBg : undefined }}
               >
-                <p className="text-[12px] font-medium text-[#595e6b]">{day}</p>
+                <p className="text-[12px] font-medium text-[#595e6b] dark:text-[#999ea8]">{day}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex h-[38px] w-full border-b-2 border-[#e0e3e8]">
+        <div className="flex h-[38px] w-full border-b-2 border-[#e0e3e8] dark:border-[#2d313f]">
           <div className="flex h-full shrink-0 items-center px-4" style={{ width: TASK_COL_WIDTH }}>
-            <p className="text-[13px] text-[#262933]">Общие трудозатраты</p>
+            <p className="text-[13px] text-[#262933] dark:text-[#f2f2f7]">Общие трудозатраты</p>
           </div>
           <div className="flex h-full min-w-0 flex-1">
             {employee.dailyTotals.map((value, i) => (
@@ -88,7 +105,7 @@ export function EmployeeCard({ employee, year, month }: EmployeeCardProps) {
 
         {employee.themes.map((theme) => (
           <div key={theme.uid} className="flex w-full flex-col items-start">
-            <div className="flex h-[34px] w-full border-b border-[#e0e3e8] bg-[#f2f5f7]">
+            <div className="flex h-[34px] w-full border-b border-[#e0e3e8] bg-[#f2f5f7] dark:border-[#2d313f] dark:bg-[#181c25]">
               <div className="flex h-full shrink-0 items-center px-4" style={{ width: TASK_COL_WIDTH }}>
                 <p className="truncate text-[12px] font-medium text-[#d89425]">{theme.name}</p>
               </div>
@@ -100,7 +117,7 @@ export function EmployeeCard({ employee, year, month }: EmployeeCardProps) {
             </div>
 
             {theme.tasks.map((task) => (
-              <div key={task.uid} className="flex h-8 w-full border-b border-[#e0e3e8]">
+              <div key={task.uid} className="flex h-8 w-full border-b border-[#e0e3e8] dark:border-[#2d313f]">
                 <div className="flex h-full min-w-0 shrink-0 items-center px-4" style={{ width: TASK_COL_WIDTH }}>
                   <p className="truncate text-[12px] text-[#3b82f6]">{task.name}</p>
                 </div>
