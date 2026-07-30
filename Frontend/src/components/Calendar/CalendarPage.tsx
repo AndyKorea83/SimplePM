@@ -32,11 +32,11 @@ export function CalendarPage() {
     selectedEmployee === ALL_EMPLOYEES_VALUE ? employees : employees.filter((e) => e.uid === selectedEmployee)
 
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
+    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
       <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector
-          employees={employees.map((e) => ({ uid: e.uid, name: e.name }))}
+          employees={employees.map((e) => ({ uid: e.uid, name: e.name, team: e.team }))}
           value={selectedEmployee}
           onChange={setSelectedEmployee}
         />
