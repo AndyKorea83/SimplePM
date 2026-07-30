@@ -38,6 +38,7 @@ func NewRouter(projectService usecase.ProjectService, timesheetService usecase.T
 			r.Delete("/{uid}", taskHandler.DeleteTask)
 		})
 		r.Get("/timesheet", timesheetHandler.GetMonth)
+		r.Get("/timesheet/export", timesheetHandler.ExportLaborCosts)
 	})
 
 	return r
