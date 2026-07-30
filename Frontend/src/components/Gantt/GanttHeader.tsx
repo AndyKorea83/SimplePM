@@ -143,7 +143,7 @@ export function GanttHeader({
   onAddTask,
 }: GanttHeaderProps) {
   return (
-    <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[#e2e8f0] bg-white px-4 dark:border-[#27272a] dark:bg-[#111111]">
+    <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[#e2e8f0] bg-white px-4 dark:border-[#27272a] dark:bg-[#1a1a1a]">
       <div className="flex items-center gap-[6px]">
         <p className="text-[18px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">{title}</p>
         <img src={chevronDownIcon} alt="" className="size-4" />

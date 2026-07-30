@@ -4,21 +4,29 @@ import { SectionPlaceholder } from './components/SectionPlaceholder/SectionPlace
 import { TabbedSectionPage } from './components/SectionTabs/SectionTabs'
 import { GanttPage } from './components/Gantt/GanttPage'
 import { CalendarPage } from './components/Calendar/CalendarPage'
+import { LaborCostsPage } from './components/Calendar/LaborCostsPage'
 import { TimeGroupPlaceholderPage } from './components/Calendar/TimeSectionHeader'
 import { NAV_ROUTES, type NavRoute } from './navigation'
 
-// "Время" has real pages behind two of its tabs (Календарь) — the other two
-// still share its tab header via TimeGroupPlaceholderPage. Every other group
-// (Задачи/Команда/QA) has nothing built yet, so all of its tabs share the
-// generic TabbedSectionPage shell.
+function pageForTimeChild(childKey: string, label: string) {
+  switch (childKey) {
+    case 'calendar':
+      return <CalendarPage />
+    case 'labor-costs':
+      return <LaborCostsPage />
+    default:
+      return <TimeGroupPlaceholderPage title={label} />
+  }
+}
+
+// У «Время» под двумя вкладками (Календарь, Трудозатраты) — реальные страницы,
+// у третьей — общая шапка через TimeGroupPlaceholderPage. У остальных групп
+// (Задачи/Команда/QA) страниц пока нет — все их вкладки идут через заглушку
+// TabbedSectionPage.
 function routesForGroup(route: NavRoute) {
   if (route.key === 'time') {
     return route.children!.map((child) => (
-      <Route
-        key={child.key}
-        path={child.path}
-        element={child.key === 'calendar' ? <CalendarPage /> : <TimeGroupPlaceholderPage title={child.label} />}
-      />
+      <Route key={child.key} path={child.path} element={pageForTimeChild(child.key, child.label)} />
     ))
   }
   return route.children!.map((child) => (
@@ -39,7 +47,7 @@ function App() {
   return (
     <div className="flex">
       <Sidebar />
-      <main className="flex-1 h-screen overflow-auto bg-white dark:bg-[#0a0a0a]">
+      <main className="flex-1 h-screen overflow-auto bg-white dark:bg-[#1a1a1a]">
         <Routes>
           <Route path="/" element={<Navigate to="/gantt" replace />} />
           {NAV_ROUTES.flatMap((route) =>

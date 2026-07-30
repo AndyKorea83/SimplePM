@@ -90,7 +90,7 @@ export function TaskForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <form
         onSubmit={handleSubmit}
-        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-[#111111]"
+        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-[#1a1a1a]"
       >
         <h2 className="text-[16px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">
           {mode === 'create' ? 'Новая задача' : 'Редактирование задачи'}

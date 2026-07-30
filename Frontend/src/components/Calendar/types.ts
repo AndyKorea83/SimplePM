@@ -14,6 +14,7 @@ export type TimesheetThemeDTO = {
 export type TimesheetEmployeeDTO = {
   uid: number
   name: string
+  team: string
   dailyTotals: number[]
   totalHours: number
   themes: TimesheetThemeDTO[]

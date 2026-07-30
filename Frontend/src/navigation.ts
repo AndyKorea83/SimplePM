@@ -5,17 +5,16 @@ export type NavChild = { key: string; label: string; path: string }
 export type NavRoute = {
   key: NavKey
   label: string
-  // Leaf items navigate to `path` directly and have no sub-navigation. Items
-  // with `children` have no page of their own in the sidebar (it links to the
-  // first child) — their sub-sections switch via an in-page top tab bar
-  // instead (SectionTabs/TimeSectionHeader), not a sidebar submenu.
+  // Пункты без children — обычная ссылка на path. У пунктов с children
+  // своей страницы нет (сайдбар ведёт на первого ребёнка) — переключение
+  // между дочерними разделами идёт через вкладки сверху страницы
+  // (SectionTabs/TimeSectionHeader), а не через подменю в сайдбаре.
   path?: string
   children?: NavChild[]
 }
 
-// Section/sub-section structure from issue #25 ("Структура меню"). The
-// sidebar itself stays a flat list (see Sidebar.tsx) — `children` here drives
-// each group's top tab bar (SectionTabs) and route table (App.tsx) instead.
+// Структура разделов из issue #25. Сайдбар — плоский список (см. Sidebar.tsx),
+// а children здесь используется для вкладок (SectionTabs) и таблицы роутов (App.tsx).
 export const NAV_ROUTES: NavRoute[] = [
   { key: 'board', label: 'Доска', path: '/board' },
   {

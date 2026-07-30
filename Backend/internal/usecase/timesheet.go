@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
@@ -21,6 +22,7 @@ type TimesheetMonth struct {
 type TimesheetEmployeeMonth struct {
 	UID         int
 	Name        string
+	Team        string
 	DailyTotals []int
 	TotalHours  int
 	Themes      []TimesheetThemeMonth
@@ -97,6 +99,7 @@ func (s *timesheetService) GetMonth(_ context.Context, year int, month time.Mont
 		empMonth := TimesheetEmployeeMonth{
 			UID:         emp.UID,
 			Name:        emp.Name,
+			Team:        emp.Team,
 			DailyTotals: make([]int, daysInMonth),
 		}
 
@@ -128,4 +131,60 @@ func (s *timesheetService) GetMonth(_ context.Context, year int, month time.Mont
 
 func firstOfMonth(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// LaborCostsMatrix — разбивка Тема×Сотрудник в процентах от месячных часов,
+// основа xlsx-экспорта "Трудозатраты" (issue #40): строка на сотрудника,
+// столбец на тему. ThemeNames не фиксирован — темы меняются от месяца к
+// месяцу (открываются/закрываются), поэтому список собирается по факту.
+type LaborCostsMatrix struct {
+	ThemeNames []string
+	Rows       []LaborCostsRow
+}
+
+type LaborCostsRow struct {
+	EmployeeName   string
+	TotalHours     int
+	PercentByTheme map[string]int
+}
+
+// BuildLaborCostsMatrix сворачивает уже полученный TimesheetMonth в матрицу
+// экспорта. Если employeeUID задан — остаётся только его строка (под фильтр
+// сотрудника на странице).
+func BuildLaborCostsMatrix(month *TimesheetMonth, employeeUID *int) LaborCostsMatrix {
+	var themeNames []string
+	seenTheme := make(map[string]bool)
+	var rows []LaborCostsRow
+
+	for _, emp := range month.Employees {
+		if employeeUID != nil && emp.UID != *employeeUID {
+			continue
+		}
+		row := LaborCostsRow{EmployeeName: emp.Name, TotalHours: emp.TotalHours, PercentByTheme: make(map[string]int)}
+		for _, th := range emp.Themes {
+			if !seenTheme[th.Name] {
+				seenTheme[th.Name] = true
+				themeNames = append(themeNames, th.Name)
+			}
+			row.PercentByTheme[th.Name] = percentOf(sumInts(th.DailyTotals), emp.TotalHours)
+		}
+		rows = append(rows, row)
+	}
+
+	return LaborCostsMatrix{ThemeNames: themeNames, Rows: rows}
+}
+
+func percentOf(part, total int) int {
+	if total == 0 {
+		return 0
+	}
+	return int(math.Round(float64(part) / float64(total) * 100))
+}
+
+func sumInts(values []int) int {
+	total := 0
+	for _, v := range values {
+		total += v
+	}
+	return total
 }

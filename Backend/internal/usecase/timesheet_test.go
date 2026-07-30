@@ -71,3 +71,49 @@ func sum(values []int) int {
 	}
 	return total
 }
+
+func TestBuildLaborCostsMatrix_RowsSumToHundredPercent(t *testing.T) {
+	service := usecase.NewTimesheetService(timesheet.Generate(), timesheet.RangeStart, timesheet.RangeEnd)
+	month, err := service.GetMonth(context.Background(), 2025, time.August)
+	if err != nil {
+		t.Fatalf("GetMonth: %v", err)
+	}
+
+	matrix := usecase.BuildLaborCostsMatrix(month, nil)
+	if len(matrix.Rows) != len(month.Employees) {
+		t.Fatalf("got %d rows, want %d (one per employee)", len(matrix.Rows), len(month.Employees))
+	}
+
+	for _, row := range matrix.Rows {
+		if row.TotalHours == 0 {
+			continue // за месяц ничего не записано — процентов нет
+		}
+		var total int
+		for _, pct := range row.PercentByTheme {
+			total += pct
+		}
+		if total != 100 {
+			t.Errorf("employee %q: percentages sum to %d, want 100", row.EmployeeName, total)
+		}
+	}
+}
+
+func TestBuildLaborCostsMatrix_FiltersByEmployee(t *testing.T) {
+	service := usecase.NewTimesheetService(timesheet.Generate(), timesheet.RangeStart, timesheet.RangeEnd)
+	month, err := service.GetMonth(context.Background(), 2025, time.August)
+	if err != nil {
+		t.Fatalf("GetMonth: %v", err)
+	}
+	if len(month.Employees) == 0 {
+		t.Fatal("expected at least one employee")
+	}
+
+	uid := month.Employees[0].UID
+	matrix := usecase.BuildLaborCostsMatrix(month, &uid)
+	if len(matrix.Rows) != 1 {
+		t.Fatalf("got %d rows, want 1", len(matrix.Rows))
+	}
+	if matrix.Rows[0].EmployeeName != month.Employees[0].Name {
+		t.Errorf("row employee = %q, want %q", matrix.Rows[0].EmployeeName, month.Employees[0].Name)
+	}
+}
