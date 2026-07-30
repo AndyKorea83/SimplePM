@@ -230,7 +230,7 @@ export function GanttPage() {
 
   if (error) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#111111]">
+      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#1a1a1a]">
         <p className="text-[14px] text-[#d93333]">Не удалось загрузить проект: {error}</p>
       </div>
     )
@@ -238,7 +238,7 @@ export function GanttPage() {
 
   if (!project) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#111111]">
+      <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#1a1a1a]">
         <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>
       </div>
     )
@@ -288,7 +288,7 @@ export function GanttPage() {
       : false
 
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
+    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
       <GanttHeader
         title={project.title || project.name}
         dateRangeLabel={formatDateRange(rangeStart, rangeEnd)}

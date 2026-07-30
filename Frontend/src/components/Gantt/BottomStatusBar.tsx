@@ -26,7 +26,7 @@ export function BottomStatusBar({
   const hasActiveFilter = activeStatuses.size > 0
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-6 border-t border-[#e2e8f0] bg-white px-6 text-[12px] dark:border-[#27272a] dark:bg-[#111111]">
+    <div className="flex h-[52px] shrink-0 items-center gap-6 border-t border-[#e2e8f0] bg-white px-6 text-[12px] dark:border-[#27272a] dark:bg-[#1a1a1a]">
       <p className="shrink-0 text-[#475569] dark:text-[#80808c]">
         Всего задач: <span className="font-semibold text-[#0f172a] dark:text-[#f2f2f7]">{totalTasks} задач</span>
       </p>

@@ -180,17 +180,17 @@ export function GanttWorkspace({
   }, [])
 
   return (
-    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white dark:bg-[#111111]">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white dark:bg-[#1a1a1a]">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
             horizontally. z-50 keeps it above every right-pane layer,
             including that pane's own sticky header (z-40), so scrolled-under
             bars/header cells never paint over the frozen columns. */}
         <div
-          className="sticky left-0 z-50 flex shrink-0 flex-col border-r border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]"
+          className="sticky left-0 z-50 flex shrink-0 flex-col border-r border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#1a1a1a]"
           style={{ width: LEFT_PANE_WIDTH }}
         >
-          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]">
+          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#1a1a1a]">
             {superRowHeight > 0 && <div className="shrink-0" style={{ height: superRowHeight }} />}
             <div
               className="flex shrink-0 items-center gap-3 px-4 text-[12px] font-semibold text-[#94a3b8]"
@@ -232,7 +232,7 @@ export function GanttWorkspace({
               paint over the header's opaque background; still under the
               left pane's z-50 so it correctly hides under the frozen
               columns during horizontal scroll. */}
-          <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]">
+          <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#1a1a1a]">
             {superGroups.length > 0 && (
               <div
                 className="flex shrink-0 border-b border-[#e2e8f0] dark:border-[#27272a]"

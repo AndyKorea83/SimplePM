@@ -99,7 +99,7 @@ function NavItem({ route, collapsed, isActive }: { route: NavRoute; collapsed: b
     <Link
       to={path}
       className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg w-full ${
-        isActive ? 'bg-[rgba(216,148,37,0.15)]' : ''
+        isActive ? 'bg-[rgba(216,148,37,0.15)]' : 'hover:bg-[rgba(216,148,37,0.08)]'
       }`}
     >
       {NAV_ICON_RENDERERS[route.key]()}
@@ -135,7 +135,9 @@ export function Sidebar() {
 
   return (
     <div
-      className={`bg-white dark:bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden border-r border-[#e2e8f0] dark:border-r-0 transition-[width] duration-200 ${
+      // Цвет сайдбара всегда отличается от фона основной части (светлая:
+      // #f5f6fa против #ffffff; тёмная: #111111 против #1a1a1a) — граница не нужна.
+      className={`bg-[#f5f6fa] dark:bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden transition-[width] duration-200 ${
         collapsed ? 'w-[56px]' : 'w-[220px]'
       }`}
     >
@@ -154,7 +156,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="w-full shrink-0 border-t border-[#d9d9d9] pt-4 dark:border-[#27272a]">
+      <div className="w-full shrink-0 border-t border-[#e2e8f0] pt-4 dark:border-[#27272a]">
         <button
           type="button"
           onClick={toggleCollapsed}

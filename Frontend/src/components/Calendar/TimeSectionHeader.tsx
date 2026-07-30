@@ -40,7 +40,7 @@ function ThemeToggle() {
 // отображение активной) плюс переключатель темы.
 export function TimeSectionHeader() {
   return (
-    <div className="flex w-full items-start justify-between border-b border-[#e5e8ed] bg-white px-4 pb-0 pt-4 dark:border-[#27272a] dark:bg-[#111111]">
+    <div className="flex w-full items-start justify-between border-b border-[#e5e8ed] bg-white px-4 pb-0 pt-4 dark:border-[#27272a] dark:bg-[#1a1a1a]">
       <SectionTabs tabs={TIME_TABS} />
       <ThemeToggle />
     </div>
@@ -51,7 +51,7 @@ export function TimeSectionHeader() {
 // (переключатель темы на месте), чтобы переход между вкладками не дёргал вёрстку.
 export function TimeGroupPlaceholderPage({ title }: { title: string }) {
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
+    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
       <TimeSectionHeader />
       <div className="min-h-0 flex-1 overflow-auto">
         <SectionPlaceholder title={title} />
