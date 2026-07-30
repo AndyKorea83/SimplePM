@@ -16,6 +16,13 @@ function pageFor(routeKey: string, label: string) {
   }
 }
 
+// Groups (Время/Задачи/Команда/QA) have no page of their own — only their
+// children do — so the route list is flattened one level for <Routes>.
+type LeafRoute = { key: string; label: string; path: string }
+const LEAF_ROUTES: LeafRoute[] = NAV_ROUTES.flatMap((route) =>
+  route.children ? route.children : [{ key: route.key, label: route.label, path: route.path! }],
+)
+
 function App() {
   return (
     <div className="flex">
@@ -23,7 +30,7 @@ function App() {
       <main className="flex-1 h-screen overflow-auto bg-white dark:bg-[#0a0a0a]">
         <Routes>
           <Route path="/" element={<Navigate to="/gantt" replace />} />
-          {NAV_ROUTES.map((route) => (
+          {LEAF_ROUTES.map((route) => (
             <Route key={route.key} path={route.path} element={pageFor(route.key, route.label)} />
           ))}
         </Routes>
