@@ -22,6 +22,7 @@ type TimesheetMonth struct {
 type TimesheetEmployeeMonth struct {
 	UID         int
 	Name        string
+	Team        string
 	DailyTotals []int
 	TotalHours  int
 	Themes      []TimesheetThemeMonth
@@ -98,6 +99,7 @@ func (s *timesheetService) GetMonth(_ context.Context, year int, month time.Mont
 		empMonth := TimesheetEmployeeMonth{
 			UID:         emp.UID,
 			Name:        emp.Name,
+			Team:        emp.Team,
 			DailyTotals: make([]int, daysInMonth),
 		}
 

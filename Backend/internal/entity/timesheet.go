@@ -9,6 +9,7 @@ import "time"
 type TimesheetEmployee struct {
 	UID  int
 	Name string
+	Team string
 }
 
 // TimesheetTheme groups a few tasks under one label for one employee (the

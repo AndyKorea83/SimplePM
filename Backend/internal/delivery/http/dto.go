@@ -138,6 +138,7 @@ type timesheetMonthDTO struct {
 type timesheetEmployeeDTO struct {
 	UID         int                 `json:"uid"`
 	Name        string              `json:"name"`
+	Team        string              `json:"team"`
 	DailyTotals []int               `json:"dailyTotals"`
 	TotalHours  int                 `json:"totalHours"`
 	Themes      []timesheetThemeDTO `json:"themes"`
@@ -170,6 +171,7 @@ func newTimesheetMonthDTO(m *usecase.TimesheetMonth) timesheetMonthDTO {
 		employees = append(employees, timesheetEmployeeDTO{
 			UID:         emp.UID,
 			Name:        emp.Name,
+			Team:        emp.Team,
 			DailyTotals: emp.DailyTotals,
 			TotalHours:  emp.TotalHours,
 			Themes:      themes,

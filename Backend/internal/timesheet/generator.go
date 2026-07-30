@@ -30,11 +30,32 @@ func (d *Dataset) Data() ([]entity.TimesheetEmployee, []entity.TimesheetTheme, [
 	return d.Employees, d.Themes, d.Tasks, d.Entries
 }
 
-var employeeNames = []string{
-	"Антон Данилов",
-	"Софья Селезнева",
-	"Дмитрий Волков",
-	"Мария Кузнецова",
+type employeeSeed struct {
+	name string
+	team string
+}
+
+// Ростер и разбиение по командам — из макета Figma "Employee Dropdown"
+// (164:2864/168:1925, 3-колоночная версия), issue #45. Порядок сохраняет
+// раскладку по колонкам из макета.
+var employeeSeeds = []employeeSeed{
+	{"Софья Селезнева", "Тестирование"},
+	{"Антон Данилов", "Тестирование"},
+	{"Вадим Ужакин", "Тестирование"},
+	{"Екатерина Дроздова", "Тестирование"},
+	{"Захар Даурцев", "Embedded-разработка"},
+	{"Андрей Хакимов", "Embedded-разработка"},
+	{"Кирилл Кузнецов", "Embedded-разработка"},
+	{"Илья Ребус", "Embedded-разработка"},
+	{"Александр Стребков", "Backend"},
+	{"Алёна Мелехова", "Backend"},
+	{"Евгений Власов", "Backend"},
+	{"Иван Межевой", "Backend"},
+	{"Павел Орехов", "Frontend"},
+	{"Данила Головицкий", "Frontend"},
+	{"Дмитрий Каштанов", "Мобильная разработка"},
+	{"Татьяна Иванова", "Мобильная разработка"},
+	{"Ирина Васильева", "Системный аналитик"},
 }
 
 var themeNamePool = []string{
@@ -66,9 +87,9 @@ func Generate() *Dataset {
 	ds := &Dataset{}
 	nextThemeUID, nextTaskUID := 1, 1
 
-	for i, name := range employeeNames {
+	for i, seed := range employeeSeeds {
 		employeeUID := i + 1
-		ds.Employees = append(ds.Employees, entity.TimesheetEmployee{UID: employeeUID, Name: name})
+		ds.Employees = append(ds.Employees, entity.TimesheetEmployee{UID: employeeUID, Name: seed.name, Team: seed.team})
 
 		const themesPerEmployee = 2
 		employeeThemes := make([]entity.TimesheetTheme, 0, themesPerEmployee)
