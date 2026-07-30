@@ -180,17 +180,17 @@ export function GanttWorkspace({
   }, [])
 
   return (
-    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white">
+    <div ref={scrollRef} className="flex min-h-0 flex-1 items-start overflow-auto bg-white dark:bg-[#111111]">
       <div className="flex" style={{ width: LEFT_PANE_WIDTH + timelineWidth }}>
         {/* LEFT PANE: sticky so it stays put while the right pane scrolls
             horizontally. z-50 keeps it above every right-pane layer,
             including that pane's own sticky header (z-40), so scrolled-under
             bars/header cells never paint over the frozen columns. */}
         <div
-          className="sticky left-0 z-50 flex shrink-0 flex-col border-r border-[#e2e8f0] bg-white"
+          className="sticky left-0 z-50 flex shrink-0 flex-col border-r border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]"
           style={{ width: LEFT_PANE_WIDTH }}
         >
-          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
+          <div className="sticky top-0 z-10 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]">
             {superRowHeight > 0 && <div className="shrink-0" style={{ height: superRowHeight }} />}
             <div
               className="flex shrink-0 items-center gap-3 px-4 text-[12px] font-semibold text-[#94a3b8]"
@@ -224,7 +224,7 @@ export function GanttWorkspace({
 
         {/* RIGHT PANE: timeline grid, bars, today-line */}
         <div
-          className={`relative flex-1 shrink-0 ${scale === 'month' ? 'border-r border-[#e2e8f0]' : ''}`}
+          className={`relative flex-1 shrink-0 ${scale === 'month' ? 'border-r border-[#e2e8f0] dark:border-[#27272a]' : ''}`}
           style={{ width: timelineWidth }}
         >
           {/* z-40: above every row layer below (backgrounds/gridlines/
@@ -232,13 +232,16 @@ export function GanttWorkspace({
               paint over the header's opaque background; still under the
               left pane's z-50 so it correctly hides under the frozen
               columns during horizontal scroll. */}
-          <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white">
+          <div className="sticky top-0 z-40 flex shrink-0 flex-col border-b border-[#e2e8f0] bg-white dark:border-[#27272a] dark:bg-[#111111]">
             {superGroups.length > 0 && (
-              <div className="flex shrink-0 border-b border-[#e2e8f0]" style={{ height: superRowHeight }}>
+              <div
+                className="flex shrink-0 border-b border-[#e2e8f0] dark:border-[#27272a]"
+                style={{ height: superRowHeight }}
+              >
                 {superGroups.map((group) => (
                   <div
                     key={group.startIndex}
-                    className="flex shrink-0 items-center border-l border-[#e2e8f0] px-2 text-[11px] font-semibold text-[#475569] first:border-l-0"
+                    className="flex shrink-0 items-center border-l border-[#e2e8f0] px-2 text-[11px] font-semibold text-[#475569] first:border-l-0 dark:border-[#27272a] dark:text-[#80808c]"
                     style={{ width: group.days * pxPerDay(scale) }}
                   >
                     {group.label}
@@ -250,17 +253,14 @@ export function GanttWorkspace({
               {columns.map((column) => (
                 <div
                   key={column.key}
-                  className="flex shrink-0 items-center justify-center border-l border-[#e2e8f0] text-[11px] font-medium first:border-l-0"
+                  className={`flex shrink-0 items-center justify-center border-l border-[#e2e8f0] text-[11px] font-medium first:border-l-0 dark:border-[#27272a] ${
+                    column.isWeekend ? 'bg-[#f8fafc] dark:bg-[#1a1a1a]' : ''
+                  }`}
                   style={{
                     width: column.width,
                     color: column.isToday ? '#ef4444' : '#94a3b8',
                     fontWeight: column.isToday ? 700 : 500,
-                    backgroundColor:
-                      column.key === hoveredColumnKey
-                        ? 'rgba(37, 99, 235, 0.08)'
-                        : column.isWeekend
-                          ? '#f8fafc'
-                          : undefined,
+                    backgroundColor: column.key === hoveredColumnKey ? 'rgba(37, 99, 235, 0.08)' : undefined,
                   }}
                 >
                   {column.label}
@@ -294,7 +294,7 @@ export function GanttWorkspace({
                 .map((column) => (
                   <div
                     key={column.key}
-                    className="absolute inset-y-0 bg-[#f8fafc]"
+                    className="absolute inset-y-0 bg-[#f8fafc] dark:bg-[#1a1a1a]"
                     style={{ left: column.x, width: column.width }}
                   />
                 ))}
@@ -313,14 +313,18 @@ export function GanttWorkspace({
                 month) emphasized */}
             <div className="absolute inset-0 z-10">
               {columns.map((column) => (
-                <div key={column.key} className="absolute inset-y-0 w-px bg-[#f1f5f9]" style={{ left: column.x }} />
+                <div
+                  key={column.key}
+                  className="absolute inset-y-0 w-px bg-[#f1f5f9] dark:bg-[#27272a]"
+                  style={{ left: column.x }}
+                />
               ))}
               {superGroups
                 .filter((group) => group.startIndex > 0)
                 .map((group) => (
                   <div
                     key={group.startIndex}
-                    className="absolute inset-y-0 w-px bg-[#cbd5e1]"
+                    className="absolute inset-y-0 w-px bg-[#cbd5e1] dark:bg-[#3f3f46]"
                     style={{ left: group.startIndex * pxPerDay(scale) }}
                   />
                 ))}
