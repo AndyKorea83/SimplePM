@@ -96,11 +96,39 @@ func (h *TimesheetHandler) ExportLaborCosts(w http.ResponseWriter, r *http.Reque
 
 // buildLaborCostsWorkbook раскладывает матрицу так: имя сотрудника (столбец A),
 // по столбцу на тему (процент от месяца этого сотрудника), в конце — "Итого".
-// Форма — как в шаблоне, приложенном к issue #40.
+// Форма, шрифт (Calibri 11), тонкая чёрная граница по всем ячейкам и ширины
+// колонок — точно как в шаблоне, приложенном к issue #40 (без заливки и
+// полужирного — в шаблоне их нет вообще).
 func buildLaborCostsWorkbook(matrix usecase.LaborCostsMatrix) (*excelize.File, error) {
 	f := excelize.NewFile()
 	const sheet = "Отчет"
 	if err := f.SetSheetName(f.GetSheetName(0), sheet); err != nil {
+		return nil, err
+	}
+
+	font := &excelize.Font{Family: "Calibri", Size: 11, Color: "000000"}
+	border := []excelize.Border{
+		{Type: "left", Color: "000000", Style: 1},
+		{Type: "right", Color: "000000", Style: 1},
+		{Type: "top", Color: "000000", Style: 1},
+		{Type: "bottom", Color: "000000", Style: 1},
+	}
+	labelStyle, err := f.NewStyle(&excelize.Style{Font: font, Border: border, Alignment: &excelize.Alignment{WrapText: true}})
+	if err != nil {
+		return nil, err
+	}
+	headerStyle, err := f.NewStyle(&excelize.Style{
+		Font: font, Border: border,
+		Alignment: &excelize.Alignment{Horizontal: "center", WrapText: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+	valueStyle, err := f.NewStyle(&excelize.Style{
+		Font: font, Border: border,
+		Alignment: &excelize.Alignment{Horizontal: "right", WrapText: true},
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -145,13 +173,30 @@ func buildLaborCostsWorkbook(matrix usecase.LaborCostsMatrix) (*excelize.File, e
 		}
 	}
 
-	if err := f.SetColWidth(sheet, "A", "A", 24); err != nil {
+	lastRow := len(matrix.Rows) + 1
+	if err := f.SetCellStyle(sheet, "A1", "A1", labelStyle); err != nil {
 		return nil, err
 	}
-	if len(matrix.ThemeNames) > 0 {
-		if err := f.SetColWidth(sheet, "B", totalCol, 12); err != nil {
+	if err := f.SetCellStyle(sheet, "B1", totalCol+"1", headerStyle); err != nil {
+		return nil, err
+	}
+	if lastRow >= 2 {
+		if err := f.SetCellStyle(sheet, "A2", fmt.Sprintf("A%d", lastRow), labelStyle); err != nil {
 			return nil, err
 		}
+		if err := f.SetCellStyle(sheet, "B2", fmt.Sprintf("%s%d", totalCol, lastRow), valueStyle); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := f.SetRowHeight(sheet, 1, 40); err != nil {
+		return nil, err
+	}
+	if err := f.SetColWidth(sheet, "A", "A", 23.43); err != nil {
+		return nil, err
+	}
+	if err := f.SetColWidth(sheet, "B", totalCol, 10); err != nil {
+		return nil, err
 	}
 
 	return f, nil
