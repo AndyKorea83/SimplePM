@@ -15,24 +15,16 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
         const isActive = location.pathname === tab.path
         return (
           <Link key={tab.path} to={tab.path} className="flex flex-col items-start gap-2 pb-[10px]">
-            {/* The active tab is bold, inactive ones aren't — since bold glyphs
-                are wider, switching weight on click shifted every tab after it.
-                Reserving width via an invisible bold copy keeps the box a
-                constant size regardless of which weight is actually shown. */}
-            <span className="relative inline-grid text-[14px]">
-              <span aria-hidden="true" className="invisible whitespace-nowrap font-semibold">
-                {tab.label}
-              </span>
-              <span
-                className={`absolute inset-0 whitespace-nowrap ${
-                  isActive
-                    ? 'font-semibold text-[#0f1729] dark:text-[#f2f2f7]'
-                    : 'font-medium text-[#666e80] dark:text-[#808794]'
-                }`}
-              >
-                {tab.label}
-              </span>
-            </span>
+            {/* Font weight stays constant (font-medium) between states — a
+                bold/medium switch on click changed the text's width and
+                shifted every tab after it. Only color/underline mark active. */}
+            <p
+              className={`whitespace-nowrap text-[14px] font-medium ${
+                isActive ? 'text-[#0f1729] dark:text-[#f2f2f7]' : 'text-[#666e80] dark:text-[#808794]'
+              }`}
+            >
+              {tab.label}
+            </p>
             {isActive && <div className="h-[2px] w-full bg-[#d89425]" />}
           </Link>
         )
