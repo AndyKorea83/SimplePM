@@ -28,8 +28,8 @@ function SimpleIcon({ src, width, height, rotate }: IconSpec) {
   )
 }
 
-// "Доска" — three bars, drawn directly (Figma has no image asset for these,
-// just three colored rectangles).
+// "Доска" — три полоски, рисуем сами (в Figma для них нет отдельного ассета,
+// просто три цветных прямоугольника).
 function BoardIcon() {
   return (
     <span className="relative block size-5 shrink-0">
@@ -40,8 +40,7 @@ function BoardIcon() {
   )
 }
 
-// "Время" — a clock face assembled from its three exported parts (circle +
-// hour/minute hands).
+// "Время" — циферблат собран из трёх экспортированных частей (круг + стрелки).
 function ClockIcon() {
   return (
     <span className="relative block size-5 shrink-0">
@@ -57,8 +56,8 @@ function ClockIcon() {
   )
 }
 
-// Natural pixel dimensions of each exported Figma icon — rendering them
-// stretched to a uniform square distorts aspect ratio, so each keeps its own size.
+// Натуральные размеры иконок из Figma — растягивание в единый квадрат
+// искажает пропорции, поэтому у каждой свой размер.
 const NAV_ICON_RENDERERS: Record<NavKey, () => ReactNode> = {
   board: () => <BoardIcon />,
   time: () => <ClockIcon />,
@@ -69,8 +68,8 @@ const NAV_ICON_RENDERERS: Record<NavKey, () => ReactNode> = {
   embedded: () => <SimpleIcon src={cpuIcon} width={16} height={16} />,
 }
 
-// Always mounted; width/opacity animate in lockstep with the sidebar's own width
-// transition so labels never pop in/out ahead of the container (which caused the jump).
+// Всегда в DOM; ширина/прозрачность анимируются синхронно с шириной сайдбара,
+// чтобы подпись не появлялась/пропадала раньше контейнера (был визуальный скачок).
 function Label({
   collapsed,
   className,
@@ -91,10 +90,9 @@ function Label({
   )
 }
 
-// Sidebar/menuitem row. Groups (Время/Задачи/Команда/QA) have no submenu here
-// — per user direction, sub-navigation for a group happens via an in-page top
-// tab bar instead (see SectionTabs/TimeSectionHeader), so a group's row is
-// just a Link to its first child, same as any leaf item.
+// Строка меню. У групп (Время/Задачи/Команда/QA) подменю нет — переход внутри
+// группы идёт через вкладки на самой странице (SectionTabs/TimeSectionHeader),
+// поэтому строка группы — обычная ссылка на первого ребёнка, как у листового пункта.
 function NavItem({ route, collapsed, isActive }: { route: NavRoute; collapsed: boolean; isActive: boolean }) {
   const path = route.path ?? route.children![0].path
   return (

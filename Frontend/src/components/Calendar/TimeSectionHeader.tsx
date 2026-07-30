@@ -6,13 +6,13 @@ import { NAV_ROUTES } from '../../navigation'
 import { SectionTabs } from '../SectionTabs/SectionTabs'
 import { SectionPlaceholder } from '../SectionPlaceholder/SectionPlaceholder'
 
-// Single source of truth for this section's sub-pages (Календарь/Учет
-// времени/Трудозатраты) — same data the sidebar uses for the "Время" item.
+// Единый источник вкладок раздела (Календарь/Учет времени/Трудозатраты) —
+// те же данные, что сайдбар использует для пункта "Время".
 const TIME_TABS = NAV_ROUTES.find((route) => route.key === 'time')!.children!
 
-// Figma (189:3450): light theme = orange track + sun knob (toggle-track/toggle-knob),
-// dark theme = a single combined asset (grey track + knob + moon), not a faded/shifted
-// version of the light asset.
+// Figma (189:3450): светлая тема — оранжевый трек + солнце (toggle-track/
+// toggle-knob), тёмная — отдельный цельный ассет (серый трек + луна), а не
+// затемнённая/сдвинутая версия светлого.
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isLight = theme === 'light'
@@ -36,9 +36,8 @@ function ThemeToggle() {
   )
 }
 
-// The header-toolbar's top row: the section's own tabs (Link-based — clicking
-// "Учет времени"/"Трудозатраты" actually navigates now, not just a display
-// prop) plus the theme toggle.
+// Верхняя строка шапки раздела: вкладки (реальные ссылки, а не просто
+// отображение активной) плюс переключатель темы.
 export function TimeSectionHeader() {
   return (
     <div className="flex w-full items-start justify-between border-b border-[#e5e8ed] bg-white px-4 pb-0 pt-4 dark:border-[#27272a] dark:bg-[#111111]">
@@ -48,9 +47,8 @@ export function TimeSectionHeader() {
   )
 }
 
-// Placeholder body for the not-yet-built "Время" sub-sections (Учет
-// времени/Трудозатраты) — still uses the real header (with the theme toggle)
-// so switching tabs between them and "Календарь" stays visually seamless.
+// Заглушка для нереализованной вкладки "Учет времени" — с настоящей шапкой
+// (переключатель темы на месте), чтобы переход между вкладками не дёргал вёрстку.
 export function TimeGroupPlaceholderPage({ title }: { title: string }) {
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
