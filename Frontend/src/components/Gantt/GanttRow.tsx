@@ -6,6 +6,7 @@ import { DENSITY_METRICS } from './densityMetrics'
 import { dateToX, durationToWidth, formatDayMonth, pxPerDay, toDateInputValue } from './dateGrid'
 import { STATUS_COLORS, type TaskStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
+import { useTheme } from '../../theme/ThemeContext'
 
 function addDays(date: Date, days: number): Date {
   const next = new Date(date)
@@ -92,14 +93,21 @@ type GanttRowLeftProps = {
   onHoverChange: (hovering: boolean) => void
 }
 
-function rowBaseColor(node: GanttTaskNode): string {
-  if (!node.isSummary) return '#ffffff'
-  return node.depth === 0 ? '#eef2ff' : '#f8fafc'
+function rowBaseColor(node: GanttTaskNode, isDark: boolean): string {
+  if (!node.isSummary) return isDark ? '#111111' : '#ffffff'
+  if (node.depth === 0) return isDark ? '#1e1e2e' : '#eef2ff'
+  return isDark ? '#1a1a1a' : '#f8fafc'
 }
 
-function rowHoverColor(node: GanttTaskNode): string {
-  if (!node.isSummary) return '#f1f5f9'
-  return node.depth === 0 ? '#e0e7ff' : '#eef2ff'
+function rowHoverColor(node: GanttTaskNode, isDark: boolean): string {
+  if (!node.isSummary) return isDark ? '#1c1c1e' : '#f1f5f9'
+  if (node.depth === 0) return isDark ? '#28243f' : '#e0e7ff'
+  return isDark ? '#202024' : '#eef2ff'
+}
+
+function summaryRowBg(node: GanttTaskNode, isDark: boolean): string | undefined {
+  if (!node.isSummary) return undefined
+  return node.depth === 0 ? (isDark ? '#1e1e2e' : '#eef2ff') : isDark ? '#1a1a1a' : '#f8fafc'
 }
 
 export function GanttRowLeft({
@@ -117,13 +125,15 @@ export function GanttRowLeft({
   onHoverChange,
 }: GanttRowLeftProps) {
   const metrics = DENSITY_METRICS[density]
-  const rowColor = isHovered ? rowHoverColor(node) : rowBaseColor(node)
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+  const rowColor = isHovered ? rowHoverColor(node, isDark) : rowBaseColor(node, isDark)
 
   if (node.isSummary) {
     const isStage = node.depth === 0
     return (
       <div
-        className="flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] pr-4"
+        className="flex shrink-0 items-center gap-3 border-b border-[#e2e8f0] pr-4 dark:border-[#27272a]"
         style={{ height: metrics.groupRowHeight, backgroundColor: rowColor }}
         onMouseEnter={() => onHoverChange(true)}
         onMouseLeave={() => onHoverChange(false)}
@@ -133,7 +143,7 @@ export function GanttRowLeft({
           <button
             type="button"
             onClick={onEdit}
-            className={`cursor-pointer truncate text-left text-[13px] text-[#374151] hover:underline ${isStage ? 'font-bold' : 'font-semibold'}`}
+            className={`cursor-pointer truncate text-left text-[13px] text-[#374151] hover:underline dark:text-[#f2f2f7] ${isStage ? 'font-bold' : 'font-semibold'}`}
           >
             {node.name}
           </button>
@@ -143,8 +153,12 @@ export function GanttRowLeft({
             and the header so the start/finish columns line up exactly. */}
         <span className="w-[120px] shrink-0" />
         <span className="w-[60px] shrink-0" />
-        <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.start)}</p>
-        <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469]">{formatShortDate(node.finish)}</p>
+        <p className="w-[60px] shrink-0 text-center text-[12px] text-[#475469] dark:text-[#80808c]">
+          {formatShortDate(node.start)}
+        </p>
+        <p className="w-[70px] shrink-0 text-center text-[12px] text-[#475469] dark:text-[#80808c]">
+          {formatShortDate(node.finish)}
+        </p>
       </div>
     )
   }
@@ -153,7 +167,7 @@ export function GanttRowLeft({
 
   return (
     <div
-      className="flex shrink-0 items-center gap-3 border-b border-[#f1f5f9] pr-4"
+      className="flex shrink-0 items-center gap-3 border-b border-[#f1f5f9] pr-4 dark:border-[#27272a]"
       style={{ height: metrics.rowHeight, backgroundColor: rowColor }}
       onMouseEnter={() => onHoverChange(true)}
       onMouseLeave={() => onHoverChange(false)}
@@ -163,24 +177,24 @@ export function GanttRowLeft({
         <button
           type="button"
           onClick={onEdit}
-          className="cursor-pointer truncate text-left text-[13px] font-medium text-[#0f172a] hover:underline"
+          className="cursor-pointer truncate text-left text-[13px] font-medium text-[#0f172a] hover:underline dark:text-[#f2f2f7]"
         >
           {node.name}
         </button>
       </div>
-      <p className="w-[120px] shrink-0 truncate text-[12px] text-[#475569]">{assigneeNames}</p>
-      <p className="w-[60px] shrink-0 text-center text-[12px] font-semibold text-[#475569]">
+      <p className="w-[120px] shrink-0 truncate text-[12px] text-[#475569] dark:text-[#80808c]">{assigneeNames}</p>
+      <p className="w-[60px] shrink-0 text-center text-[12px] font-semibold text-[#475569] dark:text-[#80808c]">
         {effortDays > 0 ? `${effortDays}д` : ''}
       </p>
       <EditableDateCell
         value={node.start}
         onChange={onStartChange}
-        className="w-[60px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
+        className="w-[60px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline dark:text-[#80808c]"
       />
       <EditableDateCell
         value={node.finish}
         onChange={onFinishChange}
-        className="w-[70px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline"
+        className="w-[70px] shrink-0 cursor-pointer text-center text-[12px] text-[#475469] hover:underline dark:text-[#80808c]"
       />
     </div>
   )
@@ -195,10 +209,11 @@ export function rowHeightOf(node: GanttTaskNode, density: GanttDensity): number 
 // so the row stack's total height also defines the height of the gridline/
 // today-line/bar overlay layers stacked on top of it.
 export function GanttRowTimelineBackground({ node, density }: { node: GanttTaskNode; density: GanttDensity }) {
-  const rowBg = node.isSummary ? (node.depth === 0 ? '#eef2ff' : '#f8fafc') : undefined
+  const { theme } = useTheme()
+  const rowBg = summaryRowBg(node, theme === 'dark')
   return (
     <div
-      className="shrink-0 border-b border-[#f1f5f9]"
+      className="shrink-0 border-b border-[#f1f5f9] dark:border-[#27272a]"
       style={{ height: rowHeightOf(node, density), backgroundColor: rowBg }}
     />
   )

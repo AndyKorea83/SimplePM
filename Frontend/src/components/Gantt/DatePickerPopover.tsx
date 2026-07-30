@@ -59,24 +59,24 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
   return createPortal(
     <div
       ref={popoverRef}
-      className="fixed z-[100] w-[240px] rounded-lg border border-[#e2e8f0] bg-white p-3 shadow-lg"
+      className="fixed z-[100] w-[240px] rounded-lg border border-[#e2e8f0] bg-white p-3 shadow-lg dark:border-[#27272a] dark:bg-[#1c1c1e]"
       style={{ top: anchorRect.bottom + 4, left: anchorRect.left }}
     >
       <div className="mb-2 flex items-center justify-between">
         <button
           type="button"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[#475569] hover:bg-[#f1f5f9]"
+          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[#475569] hover:bg-[#f1f5f9] dark:text-[#80808c] dark:hover:bg-[#27272a]"
         >
           ‹
         </button>
-        <p className="text-[13px] font-semibold text-[#0f172a]">
+        <p className="text-[13px] font-semibold text-[#0f172a] dark:text-[#f2f2f7]">
           {MONTH_NAMES_FULL[viewMonth.getMonth()]} {viewMonth.getFullYear()}
         </p>
         <button
           type="button"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[#475569] hover:bg-[#f1f5f9]"
+          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[#475569] hover:bg-[#f1f5f9] dark:text-[#80808c] dark:hover:bg-[#27272a]"
         >
           ›
         </button>
@@ -96,8 +96,10 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
                 onChange(toDateInputValue(date))
                 onClose()
               }}
-              className={`size-8 cursor-pointer rounded text-[12px] hover:bg-[#eef2ff] ${
-                isSameDay(date, selected) ? 'bg-[#4078d9] font-semibold text-white hover:bg-[#4078d9]' : 'text-[#0f172a]'
+              className={`size-8 cursor-pointer rounded text-[12px] hover:bg-[#eef2ff] dark:hover:bg-[#27272a] ${
+                isSameDay(date, selected)
+                  ? 'bg-[#4078d9] font-semibold text-white hover:bg-[#4078d9] dark:hover:bg-[#4078d9]'
+                  : 'text-[#0f172a] dark:text-[#f2f2f7]'
               }`}
             >
               {date.getDate()}

@@ -12,11 +12,11 @@ type EmployeeSelectorProps = {
 
 export function EmployeeSelector({ employees, value, onChange }: EmployeeSelectorProps) {
   return (
-    <div className="relative flex h-7 w-[200px] shrink-0 items-center rounded border border-[#e0e3eb] bg-white px-[10px] py-[6px]">
+    <div className="relative flex h-7 w-[200px] shrink-0 items-center rounded border border-[#e0e3eb] bg-white px-[10px] py-[6px] dark:border-transparent dark:bg-[#2e303b]">
       <select
         value={value}
         onChange={(e) => onChange(e.target.value === ALL_EMPLOYEES_VALUE ? ALL_EMPLOYEES_VALUE : Number(e.target.value))}
-        className="w-full cursor-pointer appearance-none bg-transparent text-[13px] font-semibold text-[#0f1729] outline-none"
+        className="w-full cursor-pointer appearance-none bg-transparent text-[13px] font-semibold text-[#0f1729] outline-none dark:text-[#ebedf2]"
       >
         <option value={ALL_EMPLOYEES_VALUE}>Все сотрудники</option>
         {employees.map((employee) => (

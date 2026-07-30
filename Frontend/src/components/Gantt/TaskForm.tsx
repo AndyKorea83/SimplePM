@@ -24,14 +24,15 @@ type TaskFormProps = {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-[13px] text-[#475569]">
+    <label className="flex flex-col gap-1 text-[13px] text-[#475569] dark:text-[#80808c]">
       {label}
       {children}
     </label>
   )
 }
 
-const inputClass = 'rounded-lg border border-[#e2e8f0] px-3 py-2 text-[13px] text-[#0f172a]'
+const inputClass =
+  'rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] text-[#0f172a] dark:border-[#27272a] dark:bg-[#1c1c1e] dark:text-[#f2f2f7]'
 
 export function TaskForm({
   mode,
@@ -89,9 +90,9 @@ export function TaskForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <form
         onSubmit={handleSubmit}
-        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-[#111111]"
       >
-        <h2 className="text-[16px] font-bold text-[#0f172a]">
+        <h2 className="text-[16px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">
           {mode === 'create' ? 'Новая задача' : 'Редактирование задачи'}
         </h2>
 
@@ -154,7 +155,7 @@ export function TaskForm({
         </Field>
 
         <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-[13px] text-[#475569]">
+          <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
             <input
               type="checkbox"
               checked={values.isMilestone}
@@ -162,7 +163,7 @@ export function TaskForm({
             />
             Веха
           </label>
-          <label className="flex items-center gap-2 text-[13px] text-[#475569]">
+          <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
             <input
               type="checkbox"
               checked={values.isBlocked}
@@ -173,9 +174,9 @@ export function TaskForm({
         </div>
 
         <Field label="Исполнители">
-          <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[#e2e8f0] p-2">
+          <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[#e2e8f0] p-2 dark:border-[#27272a]">
             {resourceOptions.map((resource) => (
-              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[#0f172a]">
+              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[#0f172a] dark:text-[#f2f2f7]">
                 <input
                   type="checkbox"
                   checked={values.assigneeResourceUids.includes(resource.uid)}
@@ -207,7 +208,7 @@ export function TaskForm({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="cursor-pointer rounded-lg border border-[#e2e8f0] px-3 py-2 text-[13px] font-medium text-[#475569] disabled:opacity-50"
+              className="cursor-pointer rounded-lg border border-[#e2e8f0] px-3 py-2 text-[13px] font-medium text-[#475569] disabled:opacity-50 dark:border-[#27272a] dark:text-[#80808c]"
             >
               Отмена
             </button>

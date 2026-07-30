@@ -114,7 +114,7 @@ export function Sidebar({ userInitials = 'АК', userName = 'Алексей К.'
 
   return (
     <div
-      className={`bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden transition-[width] duration-200 ${
+      className={`bg-white dark:bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden border-r border-[#e2e8f0] dark:border-r-0 transition-[width] duration-200 ${
         collapsed ? 'w-[56px]' : 'w-[220px]'
       }`}
     >
@@ -122,7 +122,7 @@ export function Sidebar({ userInitials = 'АК', userName = 'Алексей К.'
         <div className="bg-[#d89425] p-2 rounded-lg shrink-0 flex items-center justify-center">
           <img src={calendarIcon} alt="" style={{ width: 18, height: 18 }} />
         </div>
-        <Label collapsed={collapsed} className="font-bold text-sm text-white">
+        <Label collapsed={collapsed} className="font-bold text-sm text-[#0f172a] dark:text-white">
           GranchPM
         </Label>
       </div>
@@ -141,7 +141,7 @@ export function Sidebar({ userInitials = 'АК', userName = 'Алексей К.'
               {NAV_ICON_RENDERERS[route.key]()}
               <Label
                 collapsed={collapsed}
-                className={`text-[13px] text-white ${isActive ? 'font-semibold' : 'font-normal'}`}
+                className={`text-[13px] text-[#0f172a] dark:text-white ${isActive ? 'font-semibold' : 'font-normal'}`}
               >
                 {route.label}
               </Label>
@@ -161,18 +161,18 @@ export function Sidebar({ userInitials = 'АК', userName = 'Алексей К.'
             width={collapsed ? 14 : 20}
             height={collapsed ? 14 : 20}
           />
-          <Label collapsed={collapsed} className="text-[13px] text-[#80808c]">
+          <Label collapsed={collapsed} className="text-[13px] text-[#475569] dark:text-[#80808c]">
             Свернуть
           </Label>
         </button>
 
-        <div className="flex items-center gap-[10px] pt-4 px-2 w-full border-t border-[#27272a]">
+        <div className="flex items-center gap-[10px] pt-4 px-2 w-full border-t border-[#e2e8f0] dark:border-[#27272a]">
           <div className="bg-[#d89425] rounded-[5px] size-5 flex items-center justify-center shrink-0">
             <p className="font-medium text-[9px] leading-[11px] text-white whitespace-nowrap">
               {userInitials}
             </p>
           </div>
-          <Label collapsed={collapsed} className="font-medium text-[13px] text-white">
+          <Label collapsed={collapsed} className="font-medium text-[13px] text-[#0f172a] dark:text-white">
             {userName}
           </Label>
         </div>
