@@ -5,14 +5,17 @@ export type NavChild = { key: string; label: string; path: string }
 export type NavRoute = {
   key: NavKey
   label: string
-  // Leaf items navigate to `path` directly; items with `children` instead
-  // expand/collapse a submenu in the sidebar and have no page of their own.
+  // Leaf items navigate to `path` directly and have no sub-navigation. Items
+  // with `children` have no page of their own in the sidebar (it links to the
+  // first child) — their sub-sections switch via an in-page top tab bar
+  // instead (SectionTabs/TimeSectionHeader), not a sidebar submenu.
   path?: string
   children?: NavChild[]
 }
 
-// Matches Figma's "Sidebar" page (issue #25 — "Структура меню"): the nested
-// group/submenu layout from the "Version=v2*" symbols, not the old flat list.
+// Section/sub-section structure from issue #25 ("Структура меню"). The
+// sidebar itself stays a flat list (see Sidebar.tsx) — `children` here drives
+// each group's top tab bar (SectionTabs) and route table (App.tsx) instead.
 export const NAV_ROUTES: NavRoute[] = [
   { key: 'board', label: 'Доска', path: '/board' },
   {

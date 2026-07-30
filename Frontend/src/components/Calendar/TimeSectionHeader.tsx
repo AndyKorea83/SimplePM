@@ -2,14 +2,13 @@ import toggleOffIcon from '../../assets/icons/toggle-off.svg'
 import toggleTrackIcon from '../../assets/icons/toggle-track.svg'
 import toggleKnobIcon from '../../assets/icons/toggle-knob.svg'
 import { useTheme } from '../../theme/ThemeContext'
+import { NAV_ROUTES } from '../../navigation'
+import { SectionTabs } from '../SectionTabs/SectionTabs'
+import { SectionPlaceholder } from '../SectionPlaceholder/SectionPlaceholder'
 
-const TABS = [
-  { key: 'calendar', label: 'Календарь' },
-  { key: 'timesheet', label: 'Учёт времени' },
-  { key: 'labor-costs', label: 'Трудозатраты' },
-] as const
-
-type TabKey = (typeof TABS)[number]['key']
+// Single source of truth for this section's sub-pages (Календарь/Учет
+// времени/Трудозатраты) — same data the sidebar uses for the "Время" item.
+const TIME_TABS = NAV_ROUTES.find((route) => route.key === 'time')!.children!
 
 // Figma (189:3450): light theme = orange track + sun knob (toggle-track/toggle-knob),
 // dark theme = a single combined asset (grey track + knob + moon), not a faded/shifted
@@ -37,29 +36,28 @@ function ThemeToggle() {
   )
 }
 
-// The header-toolbar's top row: the section's own tabs (only "Календарь" is
-// implemented, per the current task — the other two are inert placeholders)
-// plus the theme toggle.
-export function TimeSectionHeader({ activeTab = 'calendar' as TabKey }: { activeTab?: TabKey }) {
+// The header-toolbar's top row: the section's own tabs (Link-based — clicking
+// "Учет времени"/"Трудозатраты" actually navigates now, not just a display
+// prop) plus the theme toggle.
+export function TimeSectionHeader() {
   return (
     <div className="flex w-full items-start justify-between border-b border-[#e5e8ed] bg-white px-4 pb-0 pt-4 dark:border-[#27272a] dark:bg-[#111111]">
-      <div className="flex items-start gap-6">
-        {TABS.map((tab) => (
-          <div key={tab.key} className="flex flex-col items-start gap-2 pb-[10px]">
-            <p
-              className={`whitespace-nowrap text-[14px] ${
-                tab.key === activeTab
-                  ? 'font-semibold text-[#0f1729] dark:text-[#f2f2f7]'
-                  : 'font-medium text-[#666e80] dark:text-[#808794]'
-              }`}
-            >
-              {tab.label}
-            </p>
-            {tab.key === activeTab && <div className="h-[2px] w-full bg-[#d89425]" />}
-          </div>
-        ))}
-      </div>
+      <SectionTabs tabs={TIME_TABS} />
       <ThemeToggle />
+    </div>
+  )
+}
+
+// Placeholder body for the not-yet-built "Время" sub-sections (Учет
+// времени/Трудозатраты) — still uses the real header (with the theme toggle)
+// so switching tabs between them and "Календарь" stays visually seamless.
+export function TimeGroupPlaceholderPage({ title }: { title: string }) {
+  return (
+    <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
+      <TimeSectionHeader />
+      <div className="min-h-0 flex-1 overflow-auto">
+        <SectionPlaceholder title={title} />
+      </div>
     </div>
   )
 }

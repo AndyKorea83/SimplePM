@@ -33,7 +33,7 @@ export function CalendarPage() {
 
   return (
     <div className="flex h-full w-full flex-col bg-white dark:bg-[#111111]">
-      <TimeSectionHeader activeTab="calendar" />
+      <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector
           employees={employees.map((e) => ({ uid: e.uid, name: e.name }))}

@@ -91,11 +91,15 @@ function Label({
   )
 }
 
-// Sidebar/menuitem row for a leaf nav entry (no children — navigates directly).
-function NavLeafItem({ route, collapsed, isActive }: { route: NavRoute; collapsed: boolean; isActive: boolean }) {
+// Sidebar/menuitem row. Groups (Время/Задачи/Команда/QA) have no submenu here
+// — per user direction, sub-navigation for a group happens via an in-page top
+// tab bar instead (see SectionTabs/TimeSectionHeader), so a group's row is
+// just a Link to its first child, same as any leaf item.
+function NavItem({ route, collapsed, isActive }: { route: NavRoute; collapsed: boolean; isActive: boolean }) {
+  const path = route.path ?? route.children![0].path
   return (
     <Link
-      to={route.path!}
+      to={path}
       className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg w-full ${
         isActive ? 'bg-[rgba(216,148,37,0.15)]' : ''
       }`}
@@ -111,53 +115,8 @@ function NavLeafItem({ route, collapsed, isActive }: { route: NavRoute; collapse
   )
 }
 
-// Sidebar/menuitem row for a group (Время/Задачи/Команда/QA) — no page of its
-// own, clicking it toggles its submenu-item children (Figma "Sidebar" page,
-// nav-group + submenu-block). Highlighted whenever one of its children is the
-// current route, independent of whether it was manually expanded.
-function NavGroupItem({ route, collapsed, pathname }: { route: NavRoute; collapsed: boolean; pathname: string }) {
-  const [expanded, setExpanded] = useState(false)
-  const isActiveGroup = route.children!.some((child) => child.path === pathname)
-  const showChildren = !collapsed && (expanded || isActiveGroup)
-
-  return (
-    <div className="flex w-full flex-col">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className={`flex items-center gap-[10px] px-2 py-[10px] rounded-lg w-full cursor-pointer ${
-          isActiveGroup ? 'bg-[rgba(216,148,37,0.15)]' : ''
-        }`}
-      >
-        {NAV_ICON_RENDERERS[route.key]()}
-        <Label
-          collapsed={collapsed}
-          className={`text-[13px] text-[#212121] dark:text-white ${isActiveGroup ? 'font-semibold' : 'font-normal'}`}
-        >
-          {route.label}
-        </Label>
-      </button>
-      {showChildren && (
-        <div className="flex flex-col gap-[5px] pb-[10px] pt-1">
-          {route.children!.map((child) => {
-            const isSelected = child.path === pathname
-            return (
-              <Link
-                key={child.key}
-                to={child.path}
-                className={`flex items-center gap-[6px] py-[2px] pl-[40px] pr-3 ${isSelected ? 'text-[#d89425]' : ''}`}
-              >
-                <span className={`text-[10px] ${isSelected ? '' : 'text-[#94a3b8] dark:text-[#80808c]'}`}>•</span>
-                <span className={`text-[12px] ${isSelected ? '' : 'text-[#475569] dark:text-[#b3b3b3]'}`}>
-                  {child.label}
-                </span>
-              </Link>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
+function isRouteActive(route: NavRoute, pathname: string): boolean {
+  return route.children ? route.children.some((child) => child.path === pathname) : pathname === route.path
 }
 
 const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed'
@@ -192,18 +151,9 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto w-full">
-        {NAV_ROUTES.map((route) =>
-          route.children ? (
-            <NavGroupItem key={route.key} route={route} collapsed={collapsed} pathname={location.pathname} />
-          ) : (
-            <NavLeafItem
-              key={route.key}
-              route={route}
-              collapsed={collapsed}
-              isActive={location.pathname === route.path}
-            />
-          ),
-        )}
+        {NAV_ROUTES.map((route) => (
+          <NavItem key={route.key} route={route} collapsed={collapsed} isActive={isRouteActive(route, location.pathname)} />
+        ))}
       </nav>
 
       <div className="w-full shrink-0 border-t border-[#d9d9d9] pt-4 dark:border-[#27272a]">
