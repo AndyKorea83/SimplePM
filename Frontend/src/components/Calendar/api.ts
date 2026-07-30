@@ -9,3 +9,16 @@ export async function fetchTimesheetMonth(year: number, month: number): Promise<
   }
   return response.json()
 }
+
+// Скачивание xlsx-отчёта "Трудозатраты" через одноразовую <a> — backend сам
+// ставит Content-Disposition, поэтому переход по SPA-роутам не ломается.
+export function downloadLaborCostsReport(year: number, month: number, employeeUid: number | null) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) })
+  if (employeeUid !== null) params.set('employee', String(employeeUid))
+  const link = document.createElement('a')
+  link.href = `${API_BASE_URL}/api/timesheet/export?${params.toString()}`
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
