@@ -143,14 +143,15 @@ export function TaskForm({
           </Field>
         </div>
 
-        <Field label="% выполнения">
+        <Field label={`% выполнения: ${values.percentComplete}%`}>
           <input
-            type="number"
+            type="range"
             min={0}
             max={100}
-            className={inputClass}
+            step={5}
             value={values.percentComplete}
             onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
+            className="w-full cursor-pointer accent-[#4078d9]"
           />
         </Field>
 
