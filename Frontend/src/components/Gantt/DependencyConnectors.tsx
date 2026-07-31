@@ -81,7 +81,7 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
   if (paths.length === 0) return null
 
   return (
-    <svg className="pointer-events-none absolute inset-0 z-[35]" width="100%" height="100%">
+    <svg className="pointer-events-none absolute inset-0 z-[25]" width="100%" height="100%">
       <defs>
         <marker
           id="gantt-dependency-arrow"

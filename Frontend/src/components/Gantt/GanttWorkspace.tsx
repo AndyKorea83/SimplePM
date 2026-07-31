@@ -339,6 +339,16 @@ export function GanttWorkspace({
               />
             )}
 
+            {/* Layer 4.5: связи между задачами — под барами (z-25), чтобы бар
+                перекрывал линию, а не наоборот */}
+            <DependencyConnectors
+              visible={visible}
+              rowTops={rowTops}
+              density={density}
+              scale={scale}
+              rangeStart={renderRangeStart}
+            />
+
             {/* Layer 5: task/group bars, on top of everything */}
             <div className="absolute inset-0 z-30">
               {visible.map((node, index) => (
@@ -358,16 +368,6 @@ export function GanttWorkspace({
                 />
               ))}
             </div>
-
-            {/* Layer 5.5: связи между задачами — поверх баров, но ниже
-                sticky-хедеров (z-40/z-50) */}
-            <DependencyConnectors
-              visible={visible}
-              rowTops={rowTops}
-              density={density}
-              scale={scale}
-              rangeStart={renderRangeStart}
-            />
           </div>
         </div>
       </div>
