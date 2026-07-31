@@ -238,6 +238,169 @@ func TestUpdateTask_NotFound(t *testing.T) {
 	}
 }
 
+func TestCreateTask_WithDependency(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	task, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:         "Successor",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	if len(task.Dependencies) != 1 || task.Dependencies[0].PredecessorUID != 1 {
+		t.Errorf("Dependencies = %+v, want one dependency on predecessor 1", task.Dependencies)
+	}
+}
+
+func TestCreateTask_SelfDependencyRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	// The task doesn't have a UID yet at validation time, so the check must
+	// compare against the UID it is about to be assigned (nextTaskUID = 6).
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Self-referencing",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 6, Type: entity.FinishToStart}},
+	})
+	if err == nil {
+		t.Fatal("expected error for self-referencing dependency, got nil")
+	}
+}
+
+func TestCreateTask_DuplicateDependencyRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:   "Duplicate deps",
+		Start:  time.Now(),
+		Finish: time.Now(),
+		Dependencies: []entity.Dependency{
+			{PredecessorUID: 1, Type: entity.FinishToStart},
+			{PredecessorUID: 1, Type: entity.StartToStart},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for duplicate predecessor, got nil")
+	}
+}
+
+func TestCreateTask_UnknownPredecessorRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Orphan dependency",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 999, Type: entity.FinishToStart}},
+	})
+	if err == nil {
+		t.Fatal("expected error for unknown predecessor, got nil")
+	}
+}
+
+func TestCreateTask_InvalidDependencyTypeRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Bad type",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.DependencyType(99)}},
+	})
+	if err == nil {
+		t.Fatal("expected error for out-of-range dependency type, got nil")
+	}
+}
+
+func TestUpdateTask_ReplacesDependencies(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	newDeps := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &newDeps})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	if len(updated.Dependencies) != 1 || updated.Dependencies[0].PredecessorUID != 5 {
+		t.Errorf("Dependencies = %+v, want one dependency on predecessor 5", updated.Dependencies)
+	}
+}
+
+func TestUpdateTask_CycleRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	// 1 depends on 5 ...
+	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	// ... so making 5 depend on 1 would close a cycle and must be rejected.
+	depsOn1 := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOn1}); err == nil {
+		t.Fatal("expected error for direct cycle, got nil")
+	}
+}
+
+func TestUpdateTask_TransitiveCycleRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	// A (uid 6) -> depends on -> B (uid 1) -> depends on -> C (uid 5).
+	a, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:         "A",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	// Closing the loop: C (5) depends on A (a.UID) would make A transitively
+	// depend on itself (A -> 1 -> 5 -> A).
+	depsOnA := []entity.Dependency{{PredecessorUID: a.UID, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOnA}); err == nil {
+		t.Fatal("expected error for transitive cycle, got nil")
+	}
+}
+
+func TestDeleteTask_CleansDanglingDependencies(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	deps := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &deps}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	if err := repo.DeleteTask(ctx, 1); err != nil {
+		t.Fatalf("DeleteTask: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	for _, task := range project.Tasks {
+		if task.UID != 5 {
+			continue
+		}
+		for _, d := range task.Dependencies {
+			if d.PredecessorUID == 1 {
+				t.Errorf("task 5 still depends on deleted task 1: %+v", task.Dependencies)
+			}
+		}
+	}
+}
+
 func TestDeleteTask_Cascade(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()

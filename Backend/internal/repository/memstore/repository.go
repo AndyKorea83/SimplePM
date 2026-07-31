@@ -61,6 +61,9 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 	if err := validateRange(input.Start, input.Finish); err != nil {
 		return entity.Task{}, err
 	}
+	if err := r.validateDependencies(r.nextTaskUID, input.Dependencies); err != nil {
+		return entity.Task{}, err
+	}
 
 	task := entity.Task{
 		UID:             r.nextTaskUID,
@@ -74,6 +77,7 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 		PercentComplete: input.PercentComplete,
 		IsMilestone:     input.IsMilestone,
 		IsBlocked:       input.IsBlocked,
+		Dependencies:    append([]entity.Dependency(nil), input.Dependencies...),
 	}
 
 	if input.ParentUID != nil {
@@ -112,6 +116,11 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	if err := validateRange(start, finish); err != nil {
 		return entity.Task{}, err
 	}
+	if input.Dependencies != nil {
+		if err := r.validateDependencies(uid, *input.Dependencies); err != nil {
+			return entity.Task{}, err
+		}
+	}
 
 	if input.Name != nil {
 		task.Name = *input.Name
@@ -133,6 +142,9 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	if input.AssigneeResourceUIDs != nil {
 		r.setAssignments(uid, *input.AssigneeResourceUIDs)
 	}
+	if input.Dependencies != nil {
+		task.Dependencies = append([]entity.Dependency(nil), (*input.Dependencies)...)
+	}
 
 	return *task, nil
 }
@@ -150,9 +162,16 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 
 	remainingTasks := make([]entity.Task, 0, len(r.project.Tasks))
 	for _, t := range r.project.Tasks {
-		if _, isDead := dead[t.UID]; !isDead {
-			remainingTasks = append(remainingTasks, t)
+		if _, isDead := dead[t.UID]; isDead {
+			continue
 		}
+		// Задачи, ссылавшиеся на удалённую (или её потомков) как на
+		// предшественника, теряют эту связь — иначе Dependencies указывал бы
+		// на несуществующий UID.
+		if len(t.Dependencies) > 0 {
+			t.Dependencies = filterDependencies(t.Dependencies, dead)
+		}
+		remainingTasks = append(remainingTasks, t)
 	}
 	r.project.Tasks = remainingTasks
 
@@ -202,6 +221,77 @@ func businessDaysDuration(start, finish time.Time) time.Duration {
 
 func truncateToDate(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// filterDependencies drops any dependency whose predecessor UID is in dead.
+func filterDependencies(deps []entity.Dependency, dead map[int]struct{}) []entity.Dependency {
+	filtered := make([]entity.Dependency, 0, len(deps))
+	for _, d := range deps {
+		if _, isDead := dead[d.PredecessorUID]; !isDead {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
+// validateDependencies rejects a dependency list before it is written onto
+// taskUID: unknown/self-referencing/duplicate predecessors, an out-of-range
+// Type (defends against arbitrary ints arriving from JSON), or a cycle.
+func (r *Repository) validateDependencies(taskUID int, deps []entity.Dependency) error {
+	seen := make(map[int]struct{}, len(deps))
+	for _, d := range deps {
+		if d.PredecessorUID == taskUID {
+			return fmt.Errorf("task %d cannot depend on itself", taskUID)
+		}
+		if d.Type < entity.FinishToFinish || d.Type > entity.StartToStart {
+			return fmt.Errorf("invalid dependency type %d", d.Type)
+		}
+		if _, dup := seen[d.PredecessorUID]; dup {
+			return fmt.Errorf("duplicate dependency on predecessor %d", d.PredecessorUID)
+		}
+		seen[d.PredecessorUID] = struct{}{}
+		if _, err := r.findTaskIndex(d.PredecessorUID); err != nil {
+			return fmt.Errorf("predecessor %d not found", d.PredecessorUID)
+		}
+	}
+	if r.hasDependencyCycle(taskUID, deps) {
+		return fmt.Errorf("dependency on task %d would create a cycle", taskUID)
+	}
+	return nil
+}
+
+// hasDependencyCycle checks whether taskUID would become reachable from
+// itself if its Dependencies were replaced with proposedDeps, walking every
+// other task's *current* predecessor edges unchanged.
+func (r *Repository) hasDependencyCycle(taskUID int, proposedDeps []entity.Dependency) bool {
+	predecessorsOf := make(map[int][]int, len(r.project.Tasks))
+	for _, t := range r.project.Tasks {
+		if t.UID == taskUID {
+			continue
+		}
+		for _, d := range t.Dependencies {
+			predecessorsOf[t.UID] = append(predecessorsOf[t.UID], d.PredecessorUID)
+		}
+	}
+	for _, d := range proposedDeps {
+		predecessorsOf[taskUID] = append(predecessorsOf[taskUID], d.PredecessorUID)
+	}
+
+	visited := make(map[int]struct{})
+	queue := append([]int(nil), predecessorsOf[taskUID]...)
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == taskUID {
+			return true
+		}
+		if _, ok := visited[current]; ok {
+			continue
+		}
+		visited[current] = struct{}{}
+		queue = append(queue, predecessorsOf[current]...)
+	}
+	return false
 }
 
 func (r *Repository) findTaskIndex(uid int) (int, error) {
