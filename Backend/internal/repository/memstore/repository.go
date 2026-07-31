@@ -9,6 +9,7 @@ package memstore
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -36,11 +37,17 @@ func NewRepository(initial *entity.Project) *Repository {
 			maxAssignmentUID = a.UID
 		}
 	}
-	return &Repository{
+	r := &Repository{
 		project:           *initial,
 		nextTaskUID:       maxTaskUID + 1,
 		nextAssignmentUID: maxAssignmentUID + 1,
 	}
+	// MSPDI's own rollup (whatever MS Project computed at export time) isn't
+	// necessarily the same number our formula would produce — recompute once
+	// up front so summary percentages are correct from the first read, not
+	// just after the first mutation anywhere in the tree.
+	r.recomputeSummaryProgress()
+	return r
 }
 
 var (
@@ -92,6 +99,7 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 
 	r.project.Tasks = append(r.project.Tasks, task)
 	r.setAssignments(task.UID, input.AssigneeResourceUIDs)
+	r.recomputeSummaryProgress()
 
 	return task, nil
 }
@@ -105,6 +113,10 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 		return entity.Task{}, err
 	}
 	task := &r.project.Tasks[index]
+
+	if input.PercentComplete != nil && task.IsSummary {
+		return entity.Task{}, fmt.Errorf("percent complete of a summary task is computed automatically from its children and cannot be set directly")
+	}
 
 	start, finish := task.Start, task.Finish
 	if input.Start != nil {
@@ -146,6 +158,8 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 		task.Dependencies = append([]entity.Dependency(nil), (*input.Dependencies)...)
 	}
 
+	r.recomputeSummaryProgress()
+
 	return *task, nil
 }
 
@@ -182,6 +196,7 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 		}
 	}
 	r.project.Assignments = remainingAssignments
+	r.recomputeSummaryProgress()
 
 	return nil
 }
@@ -221,6 +236,68 @@ func businessDaysDuration(start, finish time.Time) time.Duration {
 
 func truncateToDate(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// recomputeSummaryProgress rolls up PercentComplete for every summary task
+// from its children, weighted by each child's effort (Duration in hours) —
+// a child with more work counts for more of the group's progress. A
+// zero-duration child (e.g. a milestone) still gets weight 1 so it
+// contributes rather than vanishing from the average entirely. Summary
+// tasks are a pure aggregate now (see UpdateTask's guard against editing
+// PercentComplete on one directly), so this must run after every mutation
+// that could change a leaf's percent, dates, or the tree shape itself.
+func (r *Repository) recomputeSummaryProgress() {
+	childrenByParent := make(map[int][]int, len(r.project.Tasks))
+	indexByUID := make(map[int]int, len(r.project.Tasks))
+	for i, t := range r.project.Tasks {
+		indexByUID[t.UID] = i
+		if t.ParentUID != nil {
+			childrenByParent[*t.ParentUID] = append(childrenByParent[*t.ParentUID], t.UID)
+		}
+	}
+
+	type rollup struct {
+		percent int
+		weight  float64
+	}
+	memo := make(map[int]rollup, len(r.project.Tasks))
+
+	var compute func(uid int) rollup
+	compute = func(uid int) rollup {
+		if v, ok := memo[uid]; ok {
+			return v
+		}
+		task := &r.project.Tasks[indexByUID[uid]]
+		children := childrenByParent[uid]
+		if len(children) == 0 {
+			weight := task.Duration.Hours()
+			if weight <= 0 {
+				weight = 1
+			}
+			v := rollup{percent: task.PercentComplete, weight: weight}
+			memo[uid] = v
+			return v
+		}
+
+		var weightedSum, totalWeight float64
+		for _, childUID := range children {
+			child := compute(childUID)
+			weightedSum += float64(child.percent) * child.weight
+			totalWeight += child.weight
+		}
+		if totalWeight > 0 {
+			task.PercentComplete = int(math.Round(weightedSum / totalWeight))
+		}
+		v := rollup{percent: task.PercentComplete, weight: totalWeight}
+		memo[uid] = v
+		return v
+	}
+
+	for _, t := range r.project.Tasks {
+		if t.IsSummary {
+			compute(t.UID)
+		}
+	}
 }
 
 // filterDependencies drops any dependency whose predecessor UID is in dead.

@@ -93,6 +93,105 @@ func TestCreateTask_WithParentMarksParentSummary(t *testing.T) {
 	}
 }
 
+func TestSummaryProgress_WeightedRollupFromChildren(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	// Child A: 1 business day (Mon 2026-06-15), 100% complete.
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "A",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 15, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 100,
+	}); err != nil {
+		t.Fatalf("CreateTask A: %v", err)
+	}
+	// Child B: 3 business days (Mon-Wed), 0% complete — 3x the weight of A,
+	// so the rollup should be much closer to B's 0% than a plain average.
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "B",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 17, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 0,
+	}); err != nil {
+		t.Fatalf("CreateTask B: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	var parent *entity.Task
+	for i := range project.Tasks {
+		if project.Tasks[i].UID == parentUID {
+			parent = &project.Tasks[i]
+		}
+	}
+	if parent == nil {
+		t.Fatal("parent task not found")
+	}
+	// weighted: (100*1 + 0*3) / (1+3) = 25
+	if parent.PercentComplete != 25 {
+		t.Errorf("parent.PercentComplete = %d, want 25 (weighted by effort)", parent.PercentComplete)
+	}
+}
+
+func TestSummaryProgress_RecomputesWhenChildChanges(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	child, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "Only child",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 15, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 0,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	newPercent := 100
+	if _, err := repo.UpdateTask(ctx, child.UID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err != nil {
+		t.Fatalf("UpdateTask child: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	var parent *entity.Task
+	for i := range project.Tasks {
+		if project.Tasks[i].UID == parentUID {
+			parent = &project.Tasks[i]
+		}
+	}
+	if parent == nil {
+		t.Fatal("parent task not found")
+	}
+	if parent.PercentComplete != 100 {
+		t.Errorf("parent.PercentComplete = %d, want 100 after its only child reached 100%%", parent.PercentComplete)
+	}
+}
+
+func TestUpdateTask_SummaryPercentCompleteRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:      "Child",
+		ParentUID: &parentUID,
+		Start:     time.Now(),
+		Finish:    time.Now(),
+	}); err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	newPercent := 50
+	if _, err := repo.UpdateTask(ctx, parentUID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err == nil {
+		t.Fatal("expected error setting PercentComplete directly on a summary task, got nil")
+	}
+}
+
 func TestCreateTask_UnknownParent(t *testing.T) {
 	repo := NewRepository(testProject())
 	missing := 999
