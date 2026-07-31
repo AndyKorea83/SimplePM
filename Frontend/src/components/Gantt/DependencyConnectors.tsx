@@ -1,26 +1,44 @@
 import { useMemo } from 'react'
 import { useTheme } from '../../theme/ThemeContext'
-import { taskBarSpan } from './dateGrid'
+import { pxPerDay, taskBarSpan } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { rowHeightOf } from './GanttRow'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
 const ARROW_SIZE = 6
+const MIN_EDGE_INSET_PX = 5
+
+// Точка выхода — середина последнего (или первого, для НО/НН) дня задачи,
+// а не сама граница бара, иначе линия визуально сливается с краем бара.
+// На мелких масштабах (неделя/месяц) половина ширины дня меньше 5px, но
+// отступ от границы должен быть заметен независимо от масштаба — поэтому
+// нижняя граница в 5px.
+function edgeInset(scale: GanttScale): number {
+  return Math.max(pxPerDay(scale) / 2, MIN_EDGE_INSET_PX)
+}
 
 type BarSpan = { left: number; right: number; isPoint: boolean }
 
 // Какой край бара — точка выхода из предшественника и точка входа в
 // преемника — использовать для каждого из 4 типов связи (ОО/ОН/НО/НН).
-function edgeFor(type: number, predSpan: BarSpan, succSpan: BarSpan): { sourceX: number; targetX: number } {
+// Точка выхода смещена внутрь бара на edgeInset — веха (единственная точка
+// во времени, left===right) остаётся исключением: смещать её некуда.
+function edgeFor(
+  type: number,
+  predSpan: BarSpan,
+  succSpan: BarSpan,
+  scale: GanttScale,
+): { sourceX: number; targetX: number } {
+  const inset = predSpan.isPoint ? 0 : edgeInset(scale)
   switch (type) {
     case 0: // Окончание -> Окончание
-      return { sourceX: predSpan.right, targetX: succSpan.right }
+      return { sourceX: predSpan.right - inset, targetX: succSpan.right }
     case 2: // Начало -> Окончание
-      return { sourceX: predSpan.left, targetX: succSpan.right }
+      return { sourceX: predSpan.left + inset, targetX: succSpan.right }
     case 3: // Начало -> Начало
-      return { sourceX: predSpan.left, targetX: succSpan.left }
+      return { sourceX: predSpan.left + inset, targetX: succSpan.left }
     default: // 1, Окончание -> Начало — самый частый случай
-      return { sourceX: predSpan.right, targetX: succSpan.left }
+      return { sourceX: predSpan.right - inset, targetX: succSpan.left }
   }
 }
 
@@ -79,7 +97,7 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
       // строки), в сторону строки преемника: иначе линия визуально
       // начинается прямо на правой/левой границе бара, а не под/над ним.
       const predY = predMidY + (succY > predMidY ? 1 : -1) * barHalfHeight(predNode, density)
-      const { sourceX, targetX } = edgeFor(dep.type, predSpan, succSpan)
+      const { sourceX, targetX } = edgeFor(dep.type, predSpan, succSpan, scale)
 
       paths.push({
         key: `${dep.predecessorUid}-${node.uid}-${dep.type}`,
