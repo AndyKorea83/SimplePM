@@ -135,9 +135,9 @@ export function Sidebar() {
 
   return (
     <div
-      // Цвет сайдбара всегда отличается от фона основной части (светлая:
-      // #f5f6fa против #ffffff; тёмная: #111111 против #1a1a1a) — граница не нужна.
-      className={`bg-[#f5f6fa] dark:bg-[#111111] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden transition-[width] duration-200 ${
+      // Цвет сайдбара (--sidebar-surface) всегда отличается от фона основной
+      // части (--surface) — граница не нужна.
+      className={`bg-[var(--sidebar-surface)] h-screen flex flex-col items-start gap-4 py-4 px-[10px] shrink-0 overflow-hidden transition-[width] duration-200 ${
         collapsed ? 'w-[56px]' : 'w-[220px]'
       }`}
     >
@@ -156,7 +156,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="w-full shrink-0 border-t border-[#e2e8f0] pt-4 dark:border-[#27272a]">
+      <div className="w-full shrink-0 border-t border-[var(--border)] pt-4">
         <button
           type="button"
           onClick={toggleCollapsed}

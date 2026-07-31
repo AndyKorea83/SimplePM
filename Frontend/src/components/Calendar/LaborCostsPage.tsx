@@ -85,7 +85,7 @@ function PieChart({ slices }: { slices: { percent: number; color: string }[] }) 
 function LaborCostsTable({ title, rows, totalHours }: { title: string; rows: LaborCostsRow[]; totalHours: number }) {
   return (
     <div className="mb-8 flex flex-col items-start gap-3">
-      <p className="text-[16px] font-bold text-[#0f1729] dark:text-[#f2f2f7]">{title}</p>
+      <p className="text-[16px] font-bold text-[var(--text-primary)]">{title}</p>
       <div className="flex items-center gap-8">
         <div className="flex w-[480px] flex-col items-start">
           <div className="flex h-[30px] w-full items-center border-b border-[#d9dbe5] py-2 text-[12px] font-medium text-[#737a8c] dark:border-[#2d313f] dark:text-[#999ea8]">
@@ -94,7 +94,7 @@ function LaborCostsTable({ title, rows, totalHours }: { title: string; rows: Lab
             <p className="w-[70px] text-right">Процент</p>
           </div>
           {rows.map((row, i) => (
-            <div key={row.label} className="flex h-[32px] w-full items-center py-2 text-[13px] text-[#0f1729] dark:text-[#f2f2f7]">
+            <div key={row.label} className="flex h-[32px] w-full items-center py-2 text-[13px] text-[var(--text-primary)]">
               <p className="w-[250px] truncate">{row.label}</p>
               <p className="w-[120px] text-right">{row.hours}</p>
               <p className="w-[70px] text-right">{row.percent}%</p>
@@ -104,7 +104,7 @@ function LaborCostsTable({ title, rows, totalHours }: { title: string; rows: Lab
               />
             </div>
           ))}
-          <div className="flex h-[32px] w-full items-center border-t border-[#d9dbe5] py-2 text-[13px] font-semibold text-[#0f1729] dark:border-[#2d313f] dark:text-[#f2f2f7]">
+          <div className="flex h-[32px] w-full items-center border-t border-[#d9dbe5] py-2 text-[13px] font-semibold text-[var(--text-primary)] dark:border-[#2d313f]">
             <p className="w-[250px]">Всего часов</p>
             <p className="w-[120px] text-right">{totalHours}</p>
             <p className="w-[70px] text-right">100%</p>
@@ -142,7 +142,7 @@ export function LaborCostsPage() {
   const visibleEmployees = isAllEmployees ? employees : employees.filter((e) => e.uid === selectedEmployee)
 
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
+    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
       <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector

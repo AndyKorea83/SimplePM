@@ -78,7 +78,7 @@ export function GanttBar({
         </p>
       ) : (
         <p
-          className="absolute top-1/2 whitespace-nowrap text-[11px] font-medium text-[#374151] dark:text-[#f2f2f7]"
+          className="absolute top-1/2 whitespace-nowrap text-[11px] font-medium text-[var(--text-primary)]"
           style={{ left: width + 6, transform: 'translateY(-50%)' }}
         >
           {percentComplete}%

@@ -32,7 +32,7 @@ export function CalendarPage() {
     selectedEmployee === ALL_EMPLOYEES_VALUE ? employees : employees.filter((e) => e.uid === selectedEmployee)
 
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
+    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
       <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector

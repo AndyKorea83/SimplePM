@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTheme } from '../../theme/ThemeContext'
 import { pxPerDay, taskBarSpan } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { rowHeightOf } from './GanttRow'
@@ -95,10 +94,10 @@ export function DependencyConnectors({
   onDeleteDependency,
   dragPreview,
 }: DependencyConnectorsProps) {
-  const { theme } = useTheme()
-  // Контраст text-secondary (см. architect.md), а не приглушённый цвет
+  // Контраст text-secondary (issue #48 — переменная сама меняется по теме
+  // через :root.dark, useTheme() тут не нужен), а не приглушённый цвет
   // гридлайна — линию связи нужно видеть отчётливо на фоне сетки/баров.
-  const strokeColor = theme === 'dark' ? '#94a3b8' : '#475569'
+  const strokeColor = 'var(--text-secondary)'
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   // Место клика (в локальных координатах SVG) — кнопка удаления появляется
   // там, где реально кликнули, а не в середине линии (которая может быть

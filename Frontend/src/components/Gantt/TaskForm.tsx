@@ -30,7 +30,7 @@ type TaskFormProps = {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-[13px] text-[#475569] dark:text-[#80808c]">
+    <label className="flex flex-col gap-1 text-[13px] text-[var(--text-secondary)]">
       {label}
       {children}
     </label>
@@ -38,7 +38,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const inputClass =
-  'rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] text-[#0f172a] dark:border-[#27272a] dark:bg-[#1c1c1e] dark:text-[#f2f2f7]'
+  'rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] dark:bg-[#1c1c1e]'
 
 export function TaskForm({
   mode,
@@ -126,9 +126,9 @@ export function TaskForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <form
         onSubmit={handleSubmit}
-        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-[#1a1a1a]"
+        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-[var(--surface)] p-6 shadow-xl"
       >
-        <h2 className="text-[16px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">
+        <h2 className="text-[16px] font-bold text-[var(--text-primary)]">
           {mode === 'create' ? 'Новая задача' : 'Редактирование задачи'}
         </h2>
 
@@ -182,17 +182,17 @@ export function TaskForm({
         {isSummary ? (
           <Field label="% выполнения">
             <div className="flex items-center gap-2">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#27272a]">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
                 <div
                   className="h-full rounded-full bg-[#94a3b8]"
                   style={{ width: `${values.percentComplete}%` }}
                 />
               </div>
-              <span className="shrink-0 text-[13px] text-[#475569] dark:text-[#80808c]">
+              <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">
                 {values.percentComplete}%
               </span>
             </div>
-            <span className="text-[12px] text-[#94a3b8] dark:text-[#80808c]">
+            <span className="text-[12px] text-[var(--text-secondary)]">
               Считается автоматически по подзадачам
             </span>
           </Field>
@@ -210,7 +210,7 @@ export function TaskForm({
           </Field>
         )}
 
-        <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
+        <label className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
           <input
             type="checkbox"
             checked={values.isBlocked}
@@ -220,9 +220,9 @@ export function TaskForm({
         </label>
 
         <Field label="Исполнители">
-          <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[#e2e8f0] p-2 dark:border-[#27272a]">
+          <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
             {resourceOptions.map((resource) => (
-              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[#0f172a] dark:text-[#f2f2f7]">
+              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
                 <input
                   type="checkbox"
                   checked={values.assigneeResourceUids.includes(resource.uid)}
@@ -238,7 +238,7 @@ export function TaskForm({
           <div className="flex flex-col gap-1">
             {values.dependencies.map((dep) => (
               <div key={dep.predecessorUid} className="flex items-center gap-2">
-                <span className="flex-1 truncate text-[13px] text-[#0f172a] dark:text-[#f2f2f7]">
+                <span className="flex-1 truncate text-[13px] text-[var(--text-primary)]">
                   {predecessorLabel(dep.predecessorUid)}
                 </span>
                 <select
@@ -255,7 +255,7 @@ export function TaskForm({
                 <button
                   type="button"
                   onClick={() => removeDependency(dep.predecessorUid)}
-                  className="cursor-pointer rounded px-2 py-1 text-[13px] text-[#475569] hover:bg-[#f1f5f9] dark:text-[#80808c] dark:hover:bg-[#27272a]"
+                  className="cursor-pointer rounded px-2 py-1 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--border)]"
                 >
                   ×
                 </button>
@@ -265,7 +265,7 @@ export function TaskForm({
               ref={addPredecessorRef}
               type="button"
               onClick={() => setPredecessorAnchor(addPredecessorRef.current!.getBoundingClientRect())}
-              className="-mx-2 self-start rounded px-2 py-1 text-left text-[13px] text-[#4078d9] hover:bg-[#f1f5f9] dark:hover:bg-[#27272a]"
+              className="-mx-2 self-start rounded px-2 py-1 text-left text-[13px] text-[#4078d9] hover:bg-[var(--border)]"
             >
               + Добавить предшественника
             </button>
@@ -300,7 +300,7 @@ export function TaskForm({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="cursor-pointer rounded-lg border border-[#e2e8f0] px-3 py-2 text-[13px] font-medium text-[#475569] disabled:opacity-50 dark:border-[#27272a] dark:text-[#80808c]"
+              className="cursor-pointer rounded-lg border border-[var(--border)] px-3 py-2 text-[13px] font-medium text-[var(--text-secondary)] disabled:opacity-50"
             >
               Отмена
             </button>

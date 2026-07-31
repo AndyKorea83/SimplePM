@@ -24,7 +24,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
             <span
               className={`-mx-2 -my-1 whitespace-nowrap rounded px-2 py-1 text-[14px] font-medium ${
                 isActive
-                  ? 'text-[#0f1729] dark:text-[#f2f2f7]'
+                  ? 'text-[var(--text-primary)]'
                   : 'text-[#666e80] hover:bg-[#f2f5f7] dark:text-[#808794] dark:hover:bg-[#1c1c1e]'
               }`}
             >
@@ -44,8 +44,8 @@ export function TabbedSectionPage({ tabs }: { tabs: SectionTab[] }) {
   const location = useLocation()
   const activeTab = tabs.find((tab) => tab.path === location.pathname)
   return (
-    <div className="flex h-full w-full flex-col bg-white dark:bg-[#1a1a1a]">
-      <div className="flex w-full items-start border-b border-[#e5e8ed] px-4 pb-0 pt-4 dark:border-[#27272a]">
+    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+      <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
         <SectionTabs tabs={tabs} />
       </div>
       <div className="min-h-0 flex-1 overflow-auto">

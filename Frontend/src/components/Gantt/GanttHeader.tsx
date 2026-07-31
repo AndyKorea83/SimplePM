@@ -42,8 +42,8 @@ function ScaleSelector({
             onClick={() => onChange(option.key)}
             className={`cursor-pointer whitespace-nowrap rounded-md px-3 py-[6px] text-[12px] ${
               isActive
-                ? 'bg-white font-semibold text-[#0f172a] dark:bg-[#2a2a2e] dark:text-[#f2f2f7]'
-                : 'font-medium text-[#475569] dark:text-[#80808c]'
+                ? 'bg-white font-semibold text-[var(--text-primary)] dark:bg-[#2a2a2e]'
+                : 'font-medium text-[var(--text-secondary)]'
             }`}
           >
             {option.label}
@@ -79,7 +79,7 @@ function DensitySwitcher({
               <span
                 key={i}
                 className={`block h-[1.5px] w-[14px] rounded-[1px] ${
-                  isActive ? 'bg-[#0f172a] dark:bg-[#f2f2f7]' : 'bg-[#80858f]'
+                  isActive ? 'bg-[var(--text-primary)]' : 'bg-[#80858f]'
                 }`}
               />
             ))}
@@ -105,7 +105,7 @@ function AssigneeFilter({
     <select
       value={value ?? 'all'}
       onChange={(event) => onChange(event.target.value === 'all' ? null : Number(event.target.value))}
-      className="cursor-pointer rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-[13px] font-medium text-[#0f172a] dark:border-[#27272a] dark:bg-[#1c1c1e] dark:text-[#f2f2f7]"
+      className="cursor-pointer rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] dark:bg-[#1c1c1e]"
     >
       <option value="all">Все исполнители</option>
       {teamMembers.map((member) => (
@@ -143,22 +143,22 @@ export function GanttHeader({
   onAddTask,
 }: GanttHeaderProps) {
   return (
-    <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[#e2e8f0] bg-white px-4 dark:border-[#27272a] dark:bg-[#1a1a1a]">
+    <div className="flex h-[61px] shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4">
       <div className="flex items-center gap-[6px]">
-        <p className="text-[18px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">{title}</p>
+        <p className="text-[18px] font-bold text-[var(--text-primary)]">{title}</p>
         <img src={chevronDownIcon} alt="" className="size-4" />
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 dark:border-[#27272a] dark:bg-[#1c1c1e]">
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-3 py-2 dark:bg-[#1c1c1e]">
           <img src={calendarIcon} alt="" style={{ width: 14, height: 14 }} />
-          <p className="text-[13px] font-medium text-[#0f172a] dark:text-[#f2f2f7]">{dateRangeLabel}</p>
+          <p className="text-[13px] font-medium text-[var(--text-primary)]">{dateRangeLabel}</p>
         </div>
         <AssigneeFilter teamMembers={teamMembers} value={assigneeFilter} onChange={onAssigneeFilterChange} />
         <ScaleSelector scale={scale} onChange={onScaleChange} />
         <DensitySwitcher density={density} onChange={onDensityChange} />
-        <div className="flex items-center gap-[6px] rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 dark:border-[#27272a] dark:bg-[#1c1c1e]">
+        <div className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-white px-3 py-2 dark:bg-[#1c1c1e]">
           <img src={settingsIcon} alt="" style={{ width: 14, height: 14 }} />
-          <p className="text-[13px] font-medium text-[#475569] dark:text-[#80808c]">Настройки</p>
+          <p className="text-[13px] font-medium text-[var(--text-secondary)]">Настройки</p>
         </div>
         <button
           type="button"

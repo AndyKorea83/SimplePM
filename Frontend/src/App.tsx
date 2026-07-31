@@ -47,7 +47,7 @@ function App() {
   return (
     <div className="flex">
       <Sidebar />
-      <main className="flex-1 h-screen overflow-auto bg-white dark:bg-[#1a1a1a]">
+      <main className="flex-1 h-screen overflow-auto bg-[var(--surface)]">
         <Routes>
           <Route path="/" element={<Navigate to="/gantt" replace />} />
           {NAV_ROUTES.flatMap((route) =>

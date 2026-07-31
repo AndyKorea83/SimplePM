@@ -10,32 +10,54 @@ body {
    тему сами — без этого браузер рисует светлый скроллбар и на тёмном фоне. */
 :root {
   color-scheme: light;
+
+  /* Повторяющиеся цвета темы (issue #48) — единая точка изменения вместо
+     похода по всем компонентам. Обращаться через Tailwind-произвольные
+     значения, например bg-[var(--surface)]; конвенция "только произвольные
+     значения, без tailwind.config" (CODE.md) сохраняется — здесь просто
+     переменные CSS, а не тема Tailwind. */
+
+  /* Фон страницы и карточек (модалки, попапы) — НЕ сайдбара, у него своя
+     переменная ниже: сайдбар специально всегда отличается от фона контента
+     (см. architect.md, "Сайдбар — не часть общей палитры surface"). */
+  --surface: #ffffff;
+  /* Фон сайдбара. */
+  --sidebar-surface: #f5f6fa;
+  /* Граница компонентов: карточки/попапы, разделители строк, табы. */
+  --border: #e2e8f0;
+  /* Основной текст (заголовки, значения, названия задач). */
+  --text-primary: #0f172a;
+  /* Второстепенный текст: подписи полей, плейсхолдеры, неактивные вкладки,
+     колонки "Оценка"/"Начало"/"Окончание" в таблице Ганта. */
+  --text-secondary: #475569;
 }
 
 :root.dark {
   color-scheme: dark;
+
+  --surface: #1a1a1a;
+  --sidebar-surface: #111111;
+  --border: #27272a;
+  --text-primary: #f2f2f7;
+  --text-secondary: #80808c;
 }
 
 /* Фон трека скроллбара — как фон страницы, не серый по умолчанию браузера. */
 * {
-  scrollbar-color: #cbd5e1 #ffffff;
+  scrollbar-color: #cbd5e1 var(--surface);
 }
 
 :root.dark * {
-  scrollbar-color: #3f3f46 #111111;
+  scrollbar-color: #3f3f46 var(--surface);
 }
 
 ::-webkit-scrollbar-track {
-  background: #ffffff;
+  background: var(--surface);
 }
 
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 6px;
-}
-
-:root.dark ::-webkit-scrollbar-track {
-  background: #111111;
 }
 
 :root.dark ::-webkit-scrollbar-thumb {
