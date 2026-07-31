@@ -303,6 +303,10 @@ export function GanttRowBar({
       onMouseLeave={() => onHoverChange(false)}
     >
       {node.isSummary ? (
+        // Один и тот же цвет независимо от глубины вложенности группы —
+        // раньше depth 0 красился акцентным цветом, а вложенные группы
+        // серым, и это выглядело как непоследовательность, а не как
+        // осознанный уровень вложенности.
         <div
           className="absolute top-1/2 cursor-pointer rounded-[6px]"
           onDoubleClick={onEdit}
@@ -311,7 +315,7 @@ export function GanttRowBar({
             width: Math.max(width, 4),
             height: 4,
             transform: 'translateY(-50%)',
-            backgroundColor: node.depth === 0 ? 'rgba(79,69,229,0.6)' : '#94a3b8',
+            backgroundColor: 'rgba(79,69,229,0.6)',
           }}
         />
       ) : (
