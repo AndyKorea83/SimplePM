@@ -4,38 +4,34 @@ import { taskBarSpan } from './dateGrid'
 import { rowHeightOf } from './GanttRow'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
-const STUB_PX = 10
 const ARROW_SIZE = 6
 
 type BarSpan = { left: number; right: number; isPoint: boolean }
 
 // Какой край бара — точка выхода из предшественника и точка входа в
 // преемника — использовать для каждого из 4 типов связи (ОО/ОН/НО/НН).
-// exitRight определяет, в какую сторону уходит первая заглушка линии.
-function edgeFor(
-  type: number,
-  predSpan: BarSpan,
-  succSpan: BarSpan,
-): { sourceX: number; exitRight: boolean; targetX: number } {
+function edgeFor(type: number, predSpan: BarSpan, succSpan: BarSpan): { sourceX: number; targetX: number } {
   switch (type) {
     case 0: // Окончание -> Окончание
-      return { sourceX: predSpan.right, exitRight: true, targetX: succSpan.right }
+      return { sourceX: predSpan.right, targetX: succSpan.right }
     case 2: // Начало -> Окончание
-      return { sourceX: predSpan.left, exitRight: false, targetX: succSpan.right }
+      return { sourceX: predSpan.left, targetX: succSpan.right }
     case 3: // Начало -> Начало
-      return { sourceX: predSpan.left, exitRight: false, targetX: succSpan.left }
+      return { sourceX: predSpan.left, targetX: succSpan.left }
     default: // 1, Окончание -> Начало — самый частый случай
-      return { sourceX: predSpan.right, exitRight: true, targetX: succSpan.left }
+      return { sourceX: predSpan.right, targetX: succSpan.left }
   }
 }
 
-// Ломаная "уголком": заглушка от точки выхода наружу от бара, вертикальный
-// переход к строке преемника, горизонтальный подход к точке входа.
-// marker-end сам разворачивается по направлению последнего сегмента
-// (orient="auto"), поэтому конкретная сторона входа здесь не важна.
-function buildElbowPath(sourceX: number, sourceY: number, exitRight: boolean, targetX: number, targetY: number): string {
-  const afterSourceX = sourceX + (exitRight ? STUB_PX : -STUB_PX)
-  return `M ${sourceX} ${sourceY} L ${afterSourceX} ${sourceY} L ${afterSourceX} ${targetY} L ${targetX} ${targetY}`
+// Ломаная "уголком": сначала вертикальный отрезок вниз/вверх строго по
+// x предшественника (без горизонтальной заглушки — иначе при задачах
+// впритык друг к другу заглушка "перелетает" через начало преемника, и
+// стрелка влетает в него не с той стороны), затем горизонтальный подход
+// к точке входа. marker-end сам разворачивается по направлению последнего
+// сегмента (orient="auto").
+function buildElbowPath(sourceX: number, sourceY: number, targetX: number, targetY: number): string {
+  if (sourceY === targetY) return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
+  return `M ${sourceX} ${sourceY} L ${sourceX} ${targetY} L ${targetX} ${targetY}`
 }
 
 type DependencyConnectorsProps = {
@@ -71,11 +67,11 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
       const succSpan = taskBarSpan(node, scale, rangeStart)
       const predY = rowTops[predIndex] + rowHeightOf(predNode, density) / 2
       const succY = rowTops[index] + rowHeightOf(node, density) / 2
-      const { sourceX, exitRight, targetX } = edgeFor(dep.type, predSpan, succSpan)
+      const { sourceX, targetX } = edgeFor(dep.type, predSpan, succSpan)
 
       paths.push({
         key: `${dep.predecessorUid}-${node.uid}-${dep.type}`,
-        d: buildElbowPath(sourceX, predY, exitRight, targetX, succY),
+        d: buildElbowPath(sourceX, predY, targetX, succY),
       })
     }
   })
