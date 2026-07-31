@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   alignedRangeStart,
   buildDayColumns,
@@ -78,6 +78,18 @@ type GanttWorkspaceProps = {
   onStartChange: (uid: number, isoDate: string) => void
   onFinishChange: (uid: number, isoDate: string) => void
   onDeleteDependency: (successorUid: number, predecessorUid: number, type: number) => void
+  onCreateDependency: (predecessorUid: number, successorUid: number) => void
+}
+
+// Ищет видимую строку, накрывающую координату y (в локальных координатах
+// таймлайна) — используется, чтобы понять, на какую задачу отпустили связь
+// при перетаскивании мышью.
+function findRowIndexAtY(y: number, visible: GanttTaskNode[], rowTops: number[], density: GanttDensity): number | null {
+  for (let i = 0; i < visible.length; i++) {
+    const height = rowHeightOf(visible[i], density)
+    if (y >= rowTops[i] && y < rowTops[i] + height) return i
+  }
+  return null
 }
 
 export function GanttWorkspace({
@@ -94,11 +106,22 @@ export function GanttWorkspace({
   onStartChange,
   onFinishChange,
   onDeleteDependency,
+  onCreateDependency,
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
   const [hoveredUid, setHoveredUid] = useState<number | null>(null)
   const [hoveredColumnKey, setHoveredColumnKey] = useState<number | null>(null)
+  // Перетаскивание "ручки" соединения от одного бара к другому — координаты
+  // в локальной системе таймлайна (относительно timelineRef), не clientX/Y.
+  const [linkDrag, setLinkDrag] = useState<{
+    sourceUid: number
+    startX: number
+    startY: number
+    currentX: number
+    currentY: number
+  } | null>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
 
   // The reference origin for all column/bar positioning below. For
   // week/month scale this is pulled back to the start of that unit (Monday,
@@ -143,6 +166,51 @@ export function GanttWorkspace({
     }
   }
   collectChildren(roots)
+
+  // Перетаскивание регистрирует document-листенеры один раз при mousedown —
+  // им нужны актуальные visible/rowTops/density на момент mouseup, а не те,
+  // что были на момент начала драга, поэтому держим их в ref.
+  const rowsRef = useRef({ visible, rowTops, density })
+  rowsRef.current = { visible, rowTops, density }
+
+  const handleLinkDragStart = (sourceUid: number, e: ReactMouseEvent) => {
+    const rect = timelineRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const startX = e.clientX - rect.left
+    const startY = e.clientY - rect.top
+    setLinkDrag({ sourceUid, startX, startY, currentX: startX, currentY: startY })
+
+    const handleMove = (moveEvent: globalThis.MouseEvent) => {
+      const r = timelineRef.current?.getBoundingClientRect()
+      if (!r) return
+      setLinkDrag((prev) => (prev ? { ...prev, currentX: moveEvent.clientX - r.left, currentY: moveEvent.clientY - r.top } : prev))
+    }
+    const cancel = () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+      document.removeEventListener('keydown', handleKeyDown)
+      setLinkDrag(null)
+    }
+    const handleUp = (upEvent: globalThis.MouseEvent) => {
+      const r = timelineRef.current?.getBoundingClientRect()
+      if (r) {
+        const dropY = upEvent.clientY - r.top
+        const { visible: currentVisible, rowTops: currentRowTops, density: currentDensity } = rowsRef.current
+        const targetIndex = findRowIndexAtY(dropY, currentVisible, currentRowTops, currentDensity)
+        const targetNode = targetIndex !== null ? currentVisible[targetIndex] : null
+        if (targetNode && targetNode.uid !== sourceUid) {
+          onCreateDependency(sourceUid, targetNode.uid)
+        }
+      }
+      cancel()
+    }
+    const handleKeyDown = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key === 'Escape') cancel()
+    }
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    document.addEventListener('keydown', handleKeyDown)
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null)
   // Kept fresh on every render so the unmount cleanup below (registered
@@ -273,6 +341,7 @@ export function GanttWorkspace({
           </div>
 
           <div
+            ref={timelineRef}
             className="relative z-0"
             onMouseMove={(e) => {
               const x = e.clientX - e.currentTarget.getBoundingClientRect().left
@@ -350,6 +419,7 @@ export function GanttWorkspace({
               scale={scale}
               rangeStart={renderRangeStart}
               onDeleteDependency={onDeleteDependency}
+              dragPreview={linkDrag}
             />
 
             {/* Layer 5: task/group bars, on top of everything */}
@@ -368,6 +438,7 @@ export function GanttWorkspace({
                   onEdit={() => onEditTask(node.uid)}
                   onStartChange={(isoDate) => onStartChange(node.uid, isoDate)}
                   onFinishChange={(isoDate) => onFinishChange(node.uid, isoDate)}
+                  onLinkDragStart={handleLinkDragStart}
                 />
               ))}
             </div>

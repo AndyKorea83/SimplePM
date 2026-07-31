@@ -218,7 +218,9 @@ export function GanttPage() {
         start,
         finish,
         percentComplete: values.percentComplete,
-        isMilestone: values.isMilestone,
+        // Веха выставляется только импортом из MSPDI — форма создания
+        // задачи её больше не предлагает.
+        isMilestone: false,
         isBlocked: values.isBlocked,
         assigneeResourceUids: values.assigneeResourceUids,
         dependencies: values.dependencies,
@@ -283,6 +285,24 @@ export function GanttPage() {
     }
   }
 
+  // Перетаскивание ручки соединения от одного бара до другого (см.
+  // GanttWorkspace.handleLinkDragStart) — создаёт связь ОН (самый частый
+  // тип) от задачи, откуда потянули, к той, куда отпустили. Ошибки backend'а
+  // (цикл, дубль, несуществующий предшественник) всплывают как alert — тем
+  // же способом, что и остальные мутации на этой странице.
+  const handleCreateDependency = async (predecessorUid: number, successorUid: number) => {
+    const successor = project?.tasks.find((t) => t.uid === successorUid)
+    if (!successor) return
+    const existing = successor.dependencies ?? []
+    if (existing.some((d) => d.predecessorUid === predecessorUid)) return
+    try {
+      await updateTask(successorUid, { dependencies: [...existing, { predecessorUid, type: 1 }] })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (error) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#1a1a1a]">
@@ -322,7 +342,6 @@ export function GanttPage() {
             start: formState.task.start.slice(0, 10),
             finish: formState.task.finish.slice(0, 10),
             percentComplete: formState.task.percentComplete,
-            isMilestone: formState.task.isMilestone,
             isBlocked: formState.task.isBlocked,
             assigneeResourceUids: [...(resourceUidsByTaskUid.get(formState.task.uid) ?? [])],
             dependencies: (formState.task.dependencies ?? []).map((d) => ({
@@ -336,7 +355,6 @@ export function GanttPage() {
             start: today.toISOString().slice(0, 10),
             finish: today.toISOString().slice(0, 10),
             percentComplete: 0,
-            isMilestone: false,
             isBlocked: false,
             assigneeResourceUids: [],
             dependencies: [],
@@ -375,6 +393,7 @@ export function GanttPage() {
         onStartChange={handleStartChange}
         onFinishChange={handleFinishChange}
         onDeleteDependency={handleDeleteDependency}
+        onCreateDependency={handleCreateDependency}
       />
       <BottomStatusBar
         totalTasks={totalTasks}

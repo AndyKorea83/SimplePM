@@ -74,6 +74,8 @@ type ConnectorPath = {
   midY: number
 }
 
+type DragPreview = { sourceUid: number; startX: number; startY: number; currentX: number; currentY: number }
+
 type DependencyConnectorsProps = {
   visible: GanttTaskNode[]
   rowTops: number[]
@@ -81,6 +83,7 @@ type DependencyConnectorsProps = {
   scale: GanttScale
   rangeStart: Date
   onDeleteDependency: (successorUid: number, predecessorUid: number, type: number) => void
+  dragPreview: DragPreview | null
 }
 
 export function DependencyConnectors({
@@ -90,12 +93,17 @@ export function DependencyConnectors({
   scale,
   rangeStart,
   onDeleteDependency,
+  dragPreview,
 }: DependencyConnectorsProps) {
   const { theme } = useTheme()
   // Контраст text-secondary (см. architect.md), а не приглушённый цвет
   // гридлайна — линию связи нужно видеть отчётливо на фоне сетки/баров.
   const strokeColor = theme === 'dark' ? '#94a3b8' : '#475569'
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  // Место клика (в локальных координатах SVG) — кнопка удаления появляется
+  // там, где реально кликнули, а не в середине линии (которая может быть
+  // далеко от видимой части экрана при длинной связи через много строк).
+  const [clickPoint, setClickPoint] = useState<{ x: number; y: number } | null>(null)
   const selectedGroupRef = useRef<SVGGElement>(null)
 
   const indexByUid = useMemo(() => {
@@ -145,14 +153,17 @@ export function DependencyConnectors({
     const handlePointerDown = (e: MouseEvent) => {
       if (selectedGroupRef.current && !selectedGroupRef.current.contains(e.target as Node)) {
         setSelectedKey(null)
+        setClickPoint(null)
       }
     }
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setSelectedKey(null)
+        setClickPoint(null)
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         onDeleteDependency(selected.successorUid, selected.predecessorUid, selected.type)
         setSelectedKey(null)
+        setClickPoint(null)
       }
     }
     document.addEventListener('mousedown', handlePointerDown)
@@ -229,7 +240,18 @@ export function DependencyConnectors({
             role="button"
             aria-label={`Связь: задача ${path.predecessorUid} -> задача ${path.successorUid}`}
             style={{ pointerEvents: 'auto', cursor: 'pointer' }}
-            onClick={() => setSelectedKey(path.key)}
+            onClick={(e) => {
+              const svg = e.currentTarget.ownerSVGElement
+              const ctm = svg?.getScreenCTM()
+              if (svg && ctm) {
+                const pt = svg.createSVGPoint()
+                pt.x = e.clientX
+                pt.y = e.clientY
+                const local = pt.matrixTransform(ctm.inverse())
+                setClickPoint({ x: local.x, y: local.y })
+              }
+              setSelectedKey(path.key)
+            }}
           />
         ))}
         {selected && (
@@ -243,23 +265,37 @@ export function DependencyConnectors({
               style={{ pointerEvents: 'none' }}
             />
             <circle
-              cx={selected.midX}
-              cy={selected.midY}
+              cx={clickPoint?.x ?? selected.midX}
+              cy={clickPoint?.y ?? selected.midY}
               r={DELETE_BUTTON_RADIUS}
               fill="#d93333"
               style={{ pointerEvents: 'auto', cursor: 'pointer' }}
               onClick={() => {
                 onDeleteDependency(selected.successorUid, selected.predecessorUid, selected.type)
                 setSelectedKey(null)
+                setClickPoint(null)
               }}
             />
             <path
-              d={`M ${selected.midX - 3} ${selected.midY - 3} L ${selected.midX + 3} ${selected.midY + 3} M ${selected.midX + 3} ${selected.midY - 3} L ${selected.midX - 3} ${selected.midY + 3}`}
+              d={`M ${(clickPoint?.x ?? selected.midX) - 3} ${(clickPoint?.y ?? selected.midY) - 3} L ${(clickPoint?.x ?? selected.midX) + 3} ${(clickPoint?.y ?? selected.midY) + 3} M ${(clickPoint?.x ?? selected.midX) + 3} ${(clickPoint?.y ?? selected.midY) - 3} L ${(clickPoint?.x ?? selected.midX) - 3} ${(clickPoint?.y ?? selected.midY) + 3}`}
               stroke="white"
               strokeWidth={1.5}
               style={{ pointerEvents: 'none' }}
             />
           </g>
+        )}
+        {/* Живое превью при перетаскивании ручки соединения — прямая
+            пунктирная линия от места старта до текущей позиции курсора. */}
+        {dragPreview && (
+          <path
+            d={`M ${dragPreview.startX} ${dragPreview.startY} L ${dragPreview.currentX} ${dragPreview.currentY}`}
+            fill="none"
+            stroke="#4078d9"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            markerEnd="url(#gantt-dependency-arrow-selected)"
+            style={{ pointerEvents: 'none' }}
+          />
         )}
       </svg>
     </>
