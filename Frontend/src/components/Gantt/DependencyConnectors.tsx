@@ -48,7 +48,9 @@ type DependencyConnectorsProps = {
 
 export function DependencyConnectors({ visible, rowTops, density, scale, rangeStart }: DependencyConnectorsProps) {
   const { theme } = useTheme()
-  const strokeColor = theme === 'dark' ? '#3f3f46' : '#cbd5e1'
+  // Контраст text-secondary (см. architect.md), а не приглушённый цвет
+  // гридлайна — линию связи нужно видеть отчётливо на фоне сетки/баров.
+  const strokeColor = theme === 'dark' ? '#94a3b8' : '#475569'
 
   const indexByUid = useMemo(() => {
     const map = new Map<number, number>()
