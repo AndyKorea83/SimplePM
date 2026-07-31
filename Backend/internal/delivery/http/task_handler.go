@@ -24,14 +24,15 @@ func NewTaskHandler(service usecase.ProjectService) *TaskHandler {
 }
 
 type createTaskRequest struct {
-	Name                 string `json:"name"`
-	ParentUID            *int   `json:"parentUid,omitempty"`
-	Start                string `json:"start"`
-	Finish               string `json:"finish"`
-	PercentComplete      int    `json:"percentComplete"`
-	IsMilestone          bool   `json:"isMilestone"`
-	IsBlocked            bool   `json:"isBlocked"`
-	AssigneeResourceUIDs []int  `json:"assigneeResourceUids"`
+	Name                 string          `json:"name"`
+	ParentUID            *int            `json:"parentUid,omitempty"`
+	Start                string          `json:"start"`
+	Finish               string          `json:"finish"`
+	PercentComplete      int             `json:"percentComplete"`
+	IsMilestone          bool            `json:"isMilestone"`
+	IsBlocked            bool            `json:"isBlocked"`
+	AssigneeResourceUIDs []int           `json:"assigneeResourceUids"`
+	Dependencies         []dependencyDTO `json:"dependencies,omitempty"`
 }
 
 // CreateTask handles POST /api/tasks.
@@ -62,6 +63,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		IsMilestone:          req.IsMilestone,
 		IsBlocked:            req.IsBlocked,
 		AssigneeResourceUIDs: req.AssigneeResourceUIDs,
+		Dependencies:         toDependencies(req.Dependencies),
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -76,12 +78,13 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateTaskRequest struct {
-	Name                 *string `json:"name,omitempty"`
-	Start                *string `json:"start,omitempty"`
-	Finish               *string `json:"finish,omitempty"`
-	PercentComplete      *int    `json:"percentComplete,omitempty"`
-	IsBlocked            *bool   `json:"isBlocked,omitempty"`
-	AssigneeResourceUIDs *[]int  `json:"assigneeResourceUids,omitempty"`
+	Name                 *string          `json:"name,omitempty"`
+	Start                *string          `json:"start,omitempty"`
+	Finish               *string          `json:"finish,omitempty"`
+	PercentComplete      *int             `json:"percentComplete,omitempty"`
+	IsBlocked            *bool            `json:"isBlocked,omitempty"`
+	AssigneeResourceUIDs *[]int           `json:"assigneeResourceUids,omitempty"`
+	Dependencies         *[]dependencyDTO `json:"dependencies,omitempty"`
 }
 
 // UpdateTask handles PATCH /api/tasks/{uid}.
@@ -119,6 +122,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		input.Finish = &finish
+	}
+	if req.Dependencies != nil {
+		converted := toDependencies(*req.Dependencies)
+		input.Dependencies = &converted
 	}
 
 	task, err := h.service.UpdateTask(r.Context(), uid, input)
