@@ -13,6 +13,7 @@ import {
 } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { flattenVisible } from './buildTaskTree'
+import { DependencyConnectors } from './DependencyConnectors'
 import { GanttRowBar, GanttRowLeft, GanttRowTimelineBackground, rowHeightOf } from './GanttRow'
 import { deriveStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
@@ -357,6 +358,16 @@ export function GanttWorkspace({
                 />
               ))}
             </div>
+
+            {/* Layer 5.5: связи между задачами — поверх баров, но ниже
+                sticky-хедеров (z-40/z-50) */}
+            <DependencyConnectors
+              visible={visible}
+              rowTops={rowTops}
+              density={density}
+              scale={scale}
+              rangeStart={renderRangeStart}
+            />
           </div>
         </div>
       </div>
