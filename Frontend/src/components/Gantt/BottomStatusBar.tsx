@@ -26,9 +26,9 @@ export function BottomStatusBar({
   const hasActiveFilter = activeStatuses.size > 0
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-6 border-t border-[#e2e8f0] bg-white px-6 text-[12px] dark:border-[#27272a] dark:bg-[#1a1a1a]">
-      <p className="shrink-0 text-[#475569] dark:text-[#80808c]">
-        Всего задач: <span className="font-semibold text-[#0f172a] dark:text-[#f2f2f7]">{totalTasks} задач</span>
+    <div className="flex h-[52px] shrink-0 items-center gap-6 border-t border-[var(--border)] bg-[var(--surface)] px-6 text-[12px]">
+      <p className="shrink-0 text-[var(--text-secondary)]">
+        Всего задач: <span className="font-semibold text-[var(--text-primary)]">{totalTasks} задач</span>
       </p>
       <div className="flex items-center gap-3">
         {LEGEND_ORDER.map((status) => {
@@ -43,18 +43,18 @@ export function BottomStatusBar({
               }`}
             >
               <StatusSquare status={status} />
-              <span className="text-[12px] text-[#1a1a1a] dark:text-[#f2f2f7]">
+              <span className="text-[12px] text-[var(--text-primary)]">
                 {STATUS_LABELS[status]} ({statusCounts[status]})
               </span>
             </button>
           )
         })}
       </div>
-      <p className="shrink-0 text-[#475569] dark:text-[#80808c]">
-        Завершено: <span className="font-semibold text-[#0f172a] dark:text-[#f2f2f7]">{completedPercent}%</span>
+      <p className="shrink-0 text-[var(--text-secondary)]">
+        Завершено: <span className="font-semibold text-[var(--text-primary)]">{completedPercent}%</span>
       </p>
       <div className="flex shrink-0 items-center gap-2">
-        <p className="text-[#475569] dark:text-[#80808c]">Команда проекта:</p>
+        <p className="text-[var(--text-secondary)]">Команда проекта:</p>
         <div className="flex items-center">
           {visibleInitials.map((initials, index) => (
             <div
@@ -67,7 +67,7 @@ export function BottomStatusBar({
           ))}
           {overflowCount > 0 && (
             <div
-              className="flex size-5 items-center justify-center rounded-[5px] border-2 border-white bg-[#e2e8f0] text-[9px] font-medium text-[#475569] dark:border-[#111111] dark:bg-[#27272a] dark:text-[#80808c]"
+              className="flex size-5 items-center justify-center rounded-[5px] border-2 border-white bg-[var(--border)] text-[9px] font-medium text-[var(--text-secondary)] dark:border-[#111111]"
               style={{ marginLeft: -6 }}
             >
               +{overflowCount}

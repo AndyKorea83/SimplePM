@@ -39,7 +39,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
         return (
           <div key={`${option.year}-${option.month}`} className="flex items-center">
             {isNewYear && (
-              <p className="whitespace-nowrap py-[5px] pl-[6px] pr-1 text-[11px] font-bold text-[#0f172a] dark:text-[#f2f2f7]">
+              <p className="whitespace-nowrap py-[5px] pl-[6px] pr-1 text-[11px] font-bold text-[var(--text-primary)]">
                 {option.year}
               </p>
             )}
@@ -48,7 +48,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
               onClick={() => onChange(option)}
               className={`cursor-pointer whitespace-nowrap rounded-md px-2 py-[5px] text-[11px] ${
                 isActive
-                  ? 'bg-white font-semibold text-[#0f172a] dark:bg-[#2a2a2e] dark:text-[#f2f2f7]'
+                  ? 'bg-white font-semibold text-[var(--text-primary)] dark:bg-[#2a2a2e]'
                   : 'font-medium text-[#475569] dark:text-[#666e7a]'
               }`}
             >
