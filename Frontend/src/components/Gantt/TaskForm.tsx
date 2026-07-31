@@ -8,7 +8,6 @@ export type TaskFormValues = {
   start: string
   finish: string
   percentComplete: number
-  isMilestone: boolean
   isBlocked: boolean
   assigneeResourceUids: number[]
   dependencies: { predecessorUid: number; type: number }[]
@@ -181,8 +180,21 @@ export function TaskForm({
         </div>
 
         {isSummary ? (
-          <Field label={`% выполнения: ${values.percentComplete}% (считается автоматически по подзадачам)`}>
-            <input type="range" min={0} max={100} value={values.percentComplete} disabled className="w-full accent-[#94a3b8]" />
+          <Field label="% выполнения">
+            <div className="flex items-center gap-2">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#27272a]">
+                <div
+                  className="h-full rounded-full bg-[#94a3b8]"
+                  style={{ width: `${values.percentComplete}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-[13px] text-[#475569] dark:text-[#80808c]">
+                {values.percentComplete}%
+              </span>
+            </div>
+            <span className="text-[12px] text-[#94a3b8] dark:text-[#80808c]">
+              Считается автоматически по подзадачам
+            </span>
           </Field>
         ) : (
           <Field label={`% выполнения: ${values.percentComplete}%`}>
@@ -198,24 +210,14 @@ export function TaskForm({
           </Field>
         )}
 
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
-            <input
-              type="checkbox"
-              checked={values.isMilestone}
-              onChange={(e) => setValues((prev) => ({ ...prev, isMilestone: e.target.checked }))}
-            />
-            Веха
-          </label>
-          <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
-            <input
-              type="checkbox"
-              checked={values.isBlocked}
-              onChange={(e) => setValues((prev) => ({ ...prev, isBlocked: e.target.checked }))}
-            />
-            Заблокирована
-          </label>
-        </div>
+        <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">
+          <input
+            type="checkbox"
+            checked={values.isBlocked}
+            onChange={(e) => setValues((prev) => ({ ...prev, isBlocked: e.target.checked }))}
+          />
+          Заблокирована
+        </label>
 
         <Field label="Исполнители">
           <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[#e2e8f0] p-2 dark:border-[#27272a]">
