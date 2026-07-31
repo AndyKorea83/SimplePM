@@ -3,7 +3,7 @@ import chevronDownIcon from '../../assets/icons/chevron-down.svg'
 import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
-import { dateToX, durationToWidth, formatDayMonth, pxPerDay, toDateInputValue } from './dateGrid'
+import { formatDayMonth, pxPerDay, taskBarSpan, toDateInputValue } from './dateGrid'
 import { STATUS_COLORS, type TaskStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 import { useTheme } from '../../theme/ThemeContext'
@@ -93,21 +93,22 @@ type GanttRowLeftProps = {
   onHoverChange: (hovering: boolean) => void
 }
 
+// Один и тот же фон для группы независимо от глубины вложенности — раньше
+// вложенные подгруппы красились в еле заметный оттенок, из-за чего казалось,
+// что у них фона нет вовсе (см. аналогичную правку цвета бара группы).
 function rowBaseColor(node: GanttTaskNode, isDark: boolean): string {
   if (!node.isSummary) return isDark ? '#111111' : '#ffffff'
-  if (node.depth === 0) return isDark ? '#1e1e2e' : '#eef2ff'
-  return isDark ? '#1a1a1a' : '#f8fafc'
+  return isDark ? '#1e1e2e' : '#eef2ff'
 }
 
 function rowHoverColor(node: GanttTaskNode, isDark: boolean): string {
   if (!node.isSummary) return isDark ? '#1c1c1e' : '#f1f5f9'
-  if (node.depth === 0) return isDark ? '#28243f' : '#e0e7ff'
-  return isDark ? '#202024' : '#eef2ff'
+  return isDark ? '#28243f' : '#e0e7ff'
 }
 
 function summaryRowBg(node: GanttTaskNode, isDark: boolean): string | undefined {
   if (!node.isSummary) return undefined
-  return node.depth === 0 ? (isDark ? '#1e1e2e' : '#eef2ff') : isDark ? '#1a1a1a' : '#f8fafc'
+  return isDark ? '#1e1e2e' : '#eef2ff'
 }
 
 export function GanttRowLeft({
@@ -231,6 +232,7 @@ type GanttRowBarProps = {
   onEdit: () => void
   onStartChange: (isoDate: string) => void
   onFinishChange: (isoDate: string) => void
+  onLinkDragStart: (uid: number, e: ReactMouseEvent) => void
 }
 
 type EdgeDrag = { edge: 'start' | 'finish'; deltaDays: number }
@@ -253,6 +255,7 @@ export function GanttRowBar({
   onEdit,
   onStartChange,
   onFinishChange,
+  onLinkDragStart,
 }: GanttRowBarProps) {
   const metrics = DENSITY_METRICS[density]
   const height = rowHeightOf(node, density)
@@ -264,13 +267,8 @@ export function GanttRowBar({
   const effectiveFinish =
     drag?.edge === 'finish' ? addDays(new Date(node.finish), drag.deltaDays) : new Date(node.finish)
 
-  const left = dateToX(effectiveStart, rangeStart, scale)
-  // A group/stage row spans its children's date range regardless of its own
-  // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
-  // on summary tasks too, which would otherwise collapse the aggregate bar
-  // to a single point.
-  const isPointInTime = node.isMilestone && !node.isSummary
-  const width = isPointInTime ? 0 : durationToWidth(effectiveStart, effectiveFinish, scale)
+  const { left, right, isPoint: isPointInTime } = taskBarSpan(node, scale, rangeStart, effectiveStart, effectiveFinish)
+  const width = right - left
 
   // Drags a bar's start or finish edge by whole days, following the mouse
   // horizontally; committed as a single onStartChange/onFinishChange call
@@ -308,6 +306,10 @@ export function GanttRowBar({
       onMouseLeave={() => onHoverChange(false)}
     >
       {node.isSummary ? (
+        // Один и тот же цвет независимо от глубины вложенности группы —
+        // раньше depth 0 красился акцентным цветом, а вложенные группы
+        // серым, и это выглядело как непоследовательность, а не как
+        // осознанный уровень вложенности.
         <div
           className="absolute top-1/2 cursor-pointer rounded-[6px]"
           onDoubleClick={onEdit}
@@ -316,7 +318,7 @@ export function GanttRowBar({
             width: Math.max(width, 4),
             height: 4,
             transform: 'translateY(-50%)',
-            backgroundColor: node.depth === 0 ? 'rgba(79,69,229,0.6)' : '#94a3b8',
+            backgroundColor: 'rgba(79,69,229,0.6)',
           }}
         />
       ) : (
@@ -329,6 +331,22 @@ export function GanttRowBar({
           isMilestone={isPointInTime}
           onDoubleClick={onEdit}
           onEdgeMouseDown={isPointInTime ? undefined : beginDrag}
+        />
+      )}
+      {/* Ручка соединения — тянуть от неё до другого бара, чтобы создать
+          связь-предшественник (issue: "соединение задач мышкой"). Заметно
+          правее правого края бара, чтобы не пересекаться с зоной ресайза
+          (EDGE_HANDLE_WIDTH в GanttBar). Видна только при наведении на
+          строку — тот же приём, что и у остального hover-UI строки. */}
+      {isHovered && (
+        <div
+          className="absolute top-1/2 z-10 size-[10px] -translate-y-1/2 cursor-crosshair rounded-full border-2 border-white bg-[#4078d9] dark:border-[#1a1a1a]"
+          style={{ left: left + width + 6 }}
+          onMouseDown={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            onLinkDragStart(node.uid, e)
+          }}
         />
       )}
     </div>

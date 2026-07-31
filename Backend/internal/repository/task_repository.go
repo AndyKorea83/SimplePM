@@ -17,6 +17,7 @@ type CreateTaskInput struct {
 	IsMilestone          bool
 	IsBlocked            bool
 	AssigneeResourceUIDs []int
+	Dependencies         []entity.Dependency
 }
 
 // UpdateTaskInput is a partial update: nil fields are left unchanged.
@@ -27,6 +28,7 @@ type UpdateTaskInput struct {
 	PercentComplete      *int
 	IsBlocked            *bool
 	AssigneeResourceUIDs *[]int
+	Dependencies         *[]entity.Dependency
 }
 
 // TaskRepository mutates project tasks. Only an in-memory-backed

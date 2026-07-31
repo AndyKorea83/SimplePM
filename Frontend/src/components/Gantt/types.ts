@@ -5,6 +5,15 @@ export type DependencyDTO = {
   type: number
 }
 
+// Порядок значений — как в backend entity.DependencyType (не алфавитный,
+// повторяет нумерацию MSPDI): ОО=0, ОН=1, НО=2, НН=3.
+export const DEPENDENCY_TYPE_OPTIONS = [
+  { value: 0, label: 'ОО' },
+  { value: 1, label: 'ОН' },
+  { value: 2, label: 'НО' },
+  { value: 3, label: 'НН' },
+] as const
+
 export type TaskDTO = {
   uid: number
   id: number

@@ -93,6 +93,105 @@ func TestCreateTask_WithParentMarksParentSummary(t *testing.T) {
 	}
 }
 
+func TestSummaryProgress_WeightedRollupFromChildren(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	// Child A: 1 business day (Mon 2026-06-15), 100% complete.
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "A",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 15, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 100,
+	}); err != nil {
+		t.Fatalf("CreateTask A: %v", err)
+	}
+	// Child B: 3 business days (Mon-Wed), 0% complete — 3x the weight of A,
+	// so the rollup should be much closer to B's 0% than a plain average.
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "B",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 17, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 0,
+	}); err != nil {
+		t.Fatalf("CreateTask B: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	var parent *entity.Task
+	for i := range project.Tasks {
+		if project.Tasks[i].UID == parentUID {
+			parent = &project.Tasks[i]
+		}
+	}
+	if parent == nil {
+		t.Fatal("parent task not found")
+	}
+	// weighted: (100*1 + 0*3) / (1+3) = 25
+	if parent.PercentComplete != 25 {
+		t.Errorf("parent.PercentComplete = %d, want 25 (weighted by effort)", parent.PercentComplete)
+	}
+}
+
+func TestSummaryProgress_RecomputesWhenChildChanges(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	child, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:            "Only child",
+		ParentUID:       &parentUID,
+		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
+		Finish:          time.Date(2026, 6, 15, 17, 0, 0, 0, time.UTC),
+		PercentComplete: 0,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	newPercent := 100
+	if _, err := repo.UpdateTask(ctx, child.UID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err != nil {
+		t.Fatalf("UpdateTask child: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	var parent *entity.Task
+	for i := range project.Tasks {
+		if project.Tasks[i].UID == parentUID {
+			parent = &project.Tasks[i]
+		}
+	}
+	if parent == nil {
+		t.Fatal("parent task not found")
+	}
+	if parent.PercentComplete != 100 {
+		t.Errorf("parent.PercentComplete = %d, want 100 after its only child reached 100%%", parent.PercentComplete)
+	}
+}
+
+func TestUpdateTask_SummaryPercentCompleteRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+	parentUID := 1
+
+	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:      "Child",
+		ParentUID: &parentUID,
+		Start:     time.Now(),
+		Finish:    time.Now(),
+	}); err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	newPercent := 50
+	if _, err := repo.UpdateTask(ctx, parentUID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err == nil {
+		t.Fatal("expected error setting PercentComplete directly on a summary task, got nil")
+	}
+}
+
 func TestCreateTask_UnknownParent(t *testing.T) {
 	repo := NewRepository(testProject())
 	missing := 999
@@ -235,6 +334,169 @@ func TestUpdateTask_NotFound(t *testing.T) {
 	_, err := repo.UpdateTask(context.Background(), 999, repository.UpdateTaskInput{})
 	if err == nil {
 		t.Fatal("expected error for unknown task, got nil")
+	}
+}
+
+func TestCreateTask_WithDependency(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	task, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:         "Successor",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	if len(task.Dependencies) != 1 || task.Dependencies[0].PredecessorUID != 1 {
+		t.Errorf("Dependencies = %+v, want one dependency on predecessor 1", task.Dependencies)
+	}
+}
+
+func TestCreateTask_SelfDependencyRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	// The task doesn't have a UID yet at validation time, so the check must
+	// compare against the UID it is about to be assigned (nextTaskUID = 6).
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Self-referencing",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 6, Type: entity.FinishToStart}},
+	})
+	if err == nil {
+		t.Fatal("expected error for self-referencing dependency, got nil")
+	}
+}
+
+func TestCreateTask_DuplicateDependencyRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:   "Duplicate deps",
+		Start:  time.Now(),
+		Finish: time.Now(),
+		Dependencies: []entity.Dependency{
+			{PredecessorUID: 1, Type: entity.FinishToStart},
+			{PredecessorUID: 1, Type: entity.StartToStart},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error for duplicate predecessor, got nil")
+	}
+}
+
+func TestCreateTask_UnknownPredecessorRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Orphan dependency",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 999, Type: entity.FinishToStart}},
+	})
+	if err == nil {
+		t.Fatal("expected error for unknown predecessor, got nil")
+	}
+}
+
+func TestCreateTask_InvalidDependencyTypeRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+		Name:         "Bad type",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.DependencyType(99)}},
+	})
+	if err == nil {
+		t.Fatal("expected error for out-of-range dependency type, got nil")
+	}
+}
+
+func TestUpdateTask_ReplacesDependencies(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	newDeps := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &newDeps})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	if len(updated.Dependencies) != 1 || updated.Dependencies[0].PredecessorUID != 5 {
+		t.Errorf("Dependencies = %+v, want one dependency on predecessor 5", updated.Dependencies)
+	}
+}
+
+func TestUpdateTask_CycleRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	// 1 depends on 5 ...
+	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	// ... so making 5 depend on 1 would close a cycle and must be rejected.
+	depsOn1 := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOn1}); err == nil {
+		t.Fatal("expected error for direct cycle, got nil")
+	}
+}
+
+func TestUpdateTask_TransitiveCycleRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	// A (uid 6) -> depends on -> B (uid 1) -> depends on -> C (uid 5).
+	a, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+		Name:         "A",
+		Start:        time.Now(),
+		Finish:       time.Now(),
+		Dependencies: []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}},
+	})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	// Closing the loop: C (5) depends on A (a.UID) would make A transitively
+	// depend on itself (A -> 1 -> 5 -> A).
+	depsOnA := []entity.Dependency{{PredecessorUID: a.UID, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOnA}); err == nil {
+		t.Fatal("expected error for transitive cycle, got nil")
+	}
+}
+
+func TestDeleteTask_CleansDanglingDependencies(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	deps := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
+	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &deps}); err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+
+	if err := repo.DeleteTask(ctx, 1); err != nil {
+		t.Fatalf("DeleteTask: %v", err)
+	}
+
+	project, _ := repo.GetProject(ctx)
+	for _, task := range project.Tasks {
+		if task.UID != 5 {
+			continue
+		}
+		for _, d := range task.Dependencies {
+			if d.PredecessorUID == 1 {
+				t.Errorf("task 5 still depends on deleted task 1: %+v", task.Dependencies)
+			}
+		}
 	}
 }
 

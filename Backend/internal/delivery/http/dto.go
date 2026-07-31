@@ -186,6 +186,21 @@ func newTimesheetMonthDTO(m *usecase.TimesheetMonth) timesheetMonthDTO {
 	}
 }
 
+// toDependencies converts request-side DTOs back into entity.Dependency.
+// Type numbering mirrors MSPDI's own (FinishToFinish=0, FinishToStart=1,
+// StartToFinish=2, StartToStart=3) — NOT alphabetical — so don't "fix" the
+// cast below assuming FS=0.
+func toDependencies(dtos []dependencyDTO) []entity.Dependency {
+	deps := make([]entity.Dependency, 0, len(dtos))
+	for _, d := range dtos {
+		deps = append(deps, entity.Dependency{
+			PredecessorUID: d.PredecessorUID,
+			Type:           entity.DependencyType(d.Type),
+		})
+	}
+	return deps
+}
+
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""

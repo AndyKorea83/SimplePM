@@ -167,6 +167,39 @@ export function GanttPage() {
     return filtered.map((n) => ({ uid: n.uid, label: '  '.repeat(n.depth) + n.name }))
   }, [roots, formState])
 
+  // Кандидаты в предшественники: сама задача исключена, а в режиме
+  // редактирования — ещё и все задачи, которые (транзитивно) зависят от
+  // редактируемой, иначе выбор создал бы цикл (backend всё равно проверяет
+  // цикл авторитетно — это лишь клиентская подсказка, чтобы не предлагать
+  // заведомо невалидный вариант).
+  const predecessorOptions = useMemo(() => {
+    if (!project) return []
+    const editingUid = formState?.mode === 'edit' ? formState.task?.uid : undefined
+    const excluded = new Set<number>()
+    if (editingUid !== undefined) {
+      excluded.add(editingUid)
+      const successorsOf = new Map<number, number[]>()
+      for (const t of project.tasks) {
+        for (const dep of t.dependencies ?? []) {
+          const arr = successorsOf.get(dep.predecessorUid) ?? []
+          arr.push(t.uid)
+          successorsOf.set(dep.predecessorUid, arr)
+        }
+      }
+      const queue = [editingUid]
+      while (queue.length > 0) {
+        const current = queue.shift()!
+        for (const successorUid of successorsOf.get(current) ?? []) {
+          if (!excluded.has(successorUid)) {
+            excluded.add(successorUid)
+            queue.push(successorUid)
+          }
+        }
+      }
+    }
+    return project.tasks.filter((t) => !excluded.has(t.uid)).map((t) => ({ uid: t.uid, label: t.name }))
+  }, [project, formState])
+
   const openCreateForm = () => setFormState({ mode: 'create' })
   const openEditForm = (uid: number) => {
     const task = project?.tasks.find((t) => t.uid === uid)
@@ -185,18 +218,25 @@ export function GanttPage() {
         start,
         finish,
         percentComplete: values.percentComplete,
-        isMilestone: values.isMilestone,
+        // Веха выставляется только импортом из MSPDI — форма создания
+        // задачи её больше не предлагает.
+        isMilestone: false,
         isBlocked: values.isBlocked,
         assigneeResourceUids: values.assigneeResourceUids,
+        dependencies: values.dependencies,
       })
     } else if (formState?.task) {
+      // % выполнения группы считается backend'ом по подзадачам — не
+      // отправляем текущее (нередактируемое в форме) значение, чтобы не
+      // напороться на серверную валидацию, запрещающую менять его вручную.
       await updateTask(formState.task.uid, {
         name: values.name,
         start,
         finish,
-        percentComplete: values.percentComplete,
+        percentComplete: formState.task.isSummary ? undefined : values.percentComplete,
         isBlocked: values.isBlocked,
         assigneeResourceUids: values.assigneeResourceUids,
+        dependencies: values.dependencies,
       })
     }
     await refetch()
@@ -222,6 +262,41 @@ export function GanttPage() {
   const handleFinishChange = async (uid: number, isoDate: string) => {
     try {
       await updateTask(uid, { finish: new Date(isoDate).toISOString() })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  // Клик по линии связи на диаграмме и последующее удаление (issue #39) —
+  // убираем одну запись из dependencies преемника и шлём весь список целиком
+  // (тот же паттерн полной замены, что и у assigneeResourceUids).
+  const handleDeleteDependency = async (successorUid: number, predecessorUid: number, type: number) => {
+    const successor = project?.tasks.find((t) => t.uid === successorUid)
+    if (!successor) return
+    const nextDependencies = (successor.dependencies ?? []).filter(
+      (d) => !(d.predecessorUid === predecessorUid && d.type === type),
+    )
+    try {
+      await updateTask(successorUid, { dependencies: nextDependencies })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  // Перетаскивание ручки соединения от одного бара до другого (см.
+  // GanttWorkspace.handleLinkDragStart) — создаёт связь ОН (самый частый
+  // тип) от задачи, откуда потянули, к той, куда отпустили. Ошибки backend'а
+  // (цикл, дубль, несуществующий предшественник) всплывают как alert — тем
+  // же способом, что и остальные мутации на этой странице.
+  const handleCreateDependency = async (predecessorUid: number, successorUid: number) => {
+    const successor = project?.tasks.find((t) => t.uid === successorUid)
+    if (!successor) return
+    const existing = successor.dependencies ?? []
+    if (existing.some((d) => d.predecessorUid === predecessorUid)) return
+    try {
+      await updateTask(successorUid, { dependencies: [...existing, { predecessorUid, type: 1 }] })
       await refetch()
     } catch (err) {
       window.alert(err instanceof Error ? err.message : String(err))
@@ -267,9 +342,12 @@ export function GanttPage() {
             start: formState.task.start.slice(0, 10),
             finish: formState.task.finish.slice(0, 10),
             percentComplete: formState.task.percentComplete,
-            isMilestone: formState.task.isMilestone,
             isBlocked: formState.task.isBlocked,
             assigneeResourceUids: [...(resourceUidsByTaskUid.get(formState.task.uid) ?? [])],
+            dependencies: (formState.task.dependencies ?? []).map((d) => ({
+              predecessorUid: d.predecessorUid,
+              type: d.type,
+            })),
           }
         : {
             name: '',
@@ -277,9 +355,9 @@ export function GanttPage() {
             start: today.toISOString().slice(0, 10),
             finish: today.toISOString().slice(0, 10),
             percentComplete: 0,
-            isMilestone: false,
             isBlocked: false,
             assigneeResourceUids: [],
+            dependencies: [],
           }
 
   const formHasChildren =
@@ -314,6 +392,8 @@ export function GanttPage() {
         onEditTask={openEditForm}
         onStartChange={handleStartChange}
         onFinishChange={handleFinishChange}
+        onDeleteDependency={handleDeleteDependency}
+        onCreateDependency={handleCreateDependency}
       />
       <BottomStatusBar
         totalTasks={totalTasks}
@@ -329,7 +409,9 @@ export function GanttPage() {
           initialValues={formInitialValues}
           parentOptions={parentOptions}
           resourceOptions={resourceOptions}
+          predecessorOptions={predecessorOptions}
           hasChildren={formHasChildren}
+          isSummary={formState.mode === 'edit' ? !!formState.task?.isSummary : false}
           onSubmit={handleFormSubmit}
           onDelete={formState.mode === 'edit' ? handleDeleteTask : undefined}
           onClose={closeForm}

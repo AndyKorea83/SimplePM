@@ -9,6 +9,7 @@ package memstore
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -36,11 +37,17 @@ func NewRepository(initial *entity.Project) *Repository {
 			maxAssignmentUID = a.UID
 		}
 	}
-	return &Repository{
+	r := &Repository{
 		project:           *initial,
 		nextTaskUID:       maxTaskUID + 1,
 		nextAssignmentUID: maxAssignmentUID + 1,
 	}
+	// MSPDI's own rollup (whatever MS Project computed at export time) isn't
+	// necessarily the same number our formula would produce — recompute once
+	// up front so summary percentages are correct from the first read, not
+	// just after the first mutation anywhere in the tree.
+	r.recomputeSummaryProgress()
+	return r
 }
 
 var (
@@ -61,6 +68,9 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 	if err := validateRange(input.Start, input.Finish); err != nil {
 		return entity.Task{}, err
 	}
+	if err := r.validateDependencies(r.nextTaskUID, input.Dependencies); err != nil {
+		return entity.Task{}, err
+	}
 
 	task := entity.Task{
 		UID:             r.nextTaskUID,
@@ -74,6 +84,7 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 		PercentComplete: input.PercentComplete,
 		IsMilestone:     input.IsMilestone,
 		IsBlocked:       input.IsBlocked,
+		Dependencies:    append([]entity.Dependency(nil), input.Dependencies...),
 	}
 
 	if input.ParentUID != nil {
@@ -88,6 +99,7 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 
 	r.project.Tasks = append(r.project.Tasks, task)
 	r.setAssignments(task.UID, input.AssigneeResourceUIDs)
+	r.recomputeSummaryProgress()
 
 	return task, nil
 }
@@ -102,6 +114,10 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	}
 	task := &r.project.Tasks[index]
 
+	if input.PercentComplete != nil && task.IsSummary {
+		return entity.Task{}, fmt.Errorf("percent complete of a summary task is computed automatically from its children and cannot be set directly")
+	}
+
 	start, finish := task.Start, task.Finish
 	if input.Start != nil {
 		start = *input.Start
@@ -111,6 +127,11 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	}
 	if err := validateRange(start, finish); err != nil {
 		return entity.Task{}, err
+	}
+	if input.Dependencies != nil {
+		if err := r.validateDependencies(uid, *input.Dependencies); err != nil {
+			return entity.Task{}, err
+		}
 	}
 
 	if input.Name != nil {
@@ -133,6 +154,11 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 	if input.AssigneeResourceUIDs != nil {
 		r.setAssignments(uid, *input.AssigneeResourceUIDs)
 	}
+	if input.Dependencies != nil {
+		task.Dependencies = append([]entity.Dependency(nil), (*input.Dependencies)...)
+	}
+
+	r.recomputeSummaryProgress()
 
 	return *task, nil
 }
@@ -150,9 +176,16 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 
 	remainingTasks := make([]entity.Task, 0, len(r.project.Tasks))
 	for _, t := range r.project.Tasks {
-		if _, isDead := dead[t.UID]; !isDead {
-			remainingTasks = append(remainingTasks, t)
+		if _, isDead := dead[t.UID]; isDead {
+			continue
 		}
+		// Задачи, ссылавшиеся на удалённую (или её потомков) как на
+		// предшественника, теряют эту связь — иначе Dependencies указывал бы
+		// на несуществующий UID.
+		if len(t.Dependencies) > 0 {
+			t.Dependencies = filterDependencies(t.Dependencies, dead)
+		}
+		remainingTasks = append(remainingTasks, t)
 	}
 	r.project.Tasks = remainingTasks
 
@@ -163,6 +196,7 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 		}
 	}
 	r.project.Assignments = remainingAssignments
+	r.recomputeSummaryProgress()
 
 	return nil
 }
@@ -202,6 +236,139 @@ func businessDaysDuration(start, finish time.Time) time.Duration {
 
 func truncateToDate(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+// recomputeSummaryProgress rolls up PercentComplete for every summary task
+// from its children, weighted by each child's effort (Duration in hours) —
+// a child with more work counts for more of the group's progress. A
+// zero-duration child (e.g. a milestone) still gets weight 1 so it
+// contributes rather than vanishing from the average entirely. Summary
+// tasks are a pure aggregate now (see UpdateTask's guard against editing
+// PercentComplete on one directly), so this must run after every mutation
+// that could change a leaf's percent, dates, or the tree shape itself.
+func (r *Repository) recomputeSummaryProgress() {
+	childrenByParent := make(map[int][]int, len(r.project.Tasks))
+	indexByUID := make(map[int]int, len(r.project.Tasks))
+	for i, t := range r.project.Tasks {
+		indexByUID[t.UID] = i
+		if t.ParentUID != nil {
+			childrenByParent[*t.ParentUID] = append(childrenByParent[*t.ParentUID], t.UID)
+		}
+	}
+
+	type rollup struct {
+		percent int
+		weight  float64
+	}
+	memo := make(map[int]rollup, len(r.project.Tasks))
+
+	var compute func(uid int) rollup
+	compute = func(uid int) rollup {
+		if v, ok := memo[uid]; ok {
+			return v
+		}
+		task := &r.project.Tasks[indexByUID[uid]]
+		children := childrenByParent[uid]
+		if len(children) == 0 {
+			weight := task.Duration.Hours()
+			if weight <= 0 {
+				weight = 1
+			}
+			v := rollup{percent: task.PercentComplete, weight: weight}
+			memo[uid] = v
+			return v
+		}
+
+		var weightedSum, totalWeight float64
+		for _, childUID := range children {
+			child := compute(childUID)
+			weightedSum += float64(child.percent) * child.weight
+			totalWeight += child.weight
+		}
+		if totalWeight > 0 {
+			task.PercentComplete = int(math.Round(weightedSum / totalWeight))
+		}
+		v := rollup{percent: task.PercentComplete, weight: totalWeight}
+		memo[uid] = v
+		return v
+	}
+
+	for _, t := range r.project.Tasks {
+		if t.IsSummary {
+			compute(t.UID)
+		}
+	}
+}
+
+// filterDependencies drops any dependency whose predecessor UID is in dead.
+func filterDependencies(deps []entity.Dependency, dead map[int]struct{}) []entity.Dependency {
+	filtered := make([]entity.Dependency, 0, len(deps))
+	for _, d := range deps {
+		if _, isDead := dead[d.PredecessorUID]; !isDead {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
+// validateDependencies rejects a dependency list before it is written onto
+// taskUID: unknown/self-referencing/duplicate predecessors, an out-of-range
+// Type (defends against arbitrary ints arriving from JSON), or a cycle.
+func (r *Repository) validateDependencies(taskUID int, deps []entity.Dependency) error {
+	seen := make(map[int]struct{}, len(deps))
+	for _, d := range deps {
+		if d.PredecessorUID == taskUID {
+			return fmt.Errorf("task %d cannot depend on itself", taskUID)
+		}
+		if d.Type < entity.FinishToFinish || d.Type > entity.StartToStart {
+			return fmt.Errorf("invalid dependency type %d", d.Type)
+		}
+		if _, dup := seen[d.PredecessorUID]; dup {
+			return fmt.Errorf("duplicate dependency on predecessor %d", d.PredecessorUID)
+		}
+		seen[d.PredecessorUID] = struct{}{}
+		if _, err := r.findTaskIndex(d.PredecessorUID); err != nil {
+			return fmt.Errorf("predecessor %d not found", d.PredecessorUID)
+		}
+	}
+	if r.hasDependencyCycle(taskUID, deps) {
+		return fmt.Errorf("dependency on task %d would create a cycle", taskUID)
+	}
+	return nil
+}
+
+// hasDependencyCycle checks whether taskUID would become reachable from
+// itself if its Dependencies were replaced with proposedDeps, walking every
+// other task's *current* predecessor edges unchanged.
+func (r *Repository) hasDependencyCycle(taskUID int, proposedDeps []entity.Dependency) bool {
+	predecessorsOf := make(map[int][]int, len(r.project.Tasks))
+	for _, t := range r.project.Tasks {
+		if t.UID == taskUID {
+			continue
+		}
+		for _, d := range t.Dependencies {
+			predecessorsOf[t.UID] = append(predecessorsOf[t.UID], d.PredecessorUID)
+		}
+	}
+	for _, d := range proposedDeps {
+		predecessorsOf[taskUID] = append(predecessorsOf[taskUID], d.PredecessorUID)
+	}
+
+	visited := make(map[int]struct{})
+	queue := append([]int(nil), predecessorsOf[taskUID]...)
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == taskUID {
+			return true
+		}
+		if _, ok := visited[current]; ok {
+			continue
+		}
+		visited[current] = struct{}{}
+		queue = append(queue, predecessorsOf[current]...)
+	}
+	return false
 }
 
 func (r *Repository) findTaskIndex(uid int) (int, error) {

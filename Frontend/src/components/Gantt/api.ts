@@ -1,4 +1,4 @@
-import type { ProjectDTO, TaskDTO } from './types'
+import type { DependencyDTO, ProjectDTO, TaskDTO } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
@@ -19,6 +19,7 @@ export type CreateTaskRequest = {
   isMilestone: boolean
   isBlocked: boolean
   assigneeResourceUids: number[]
+  dependencies: DependencyDTO[]
 }
 
 export type UpdateTaskRequest = {
@@ -28,6 +29,7 @@ export type UpdateTaskRequest = {
   percentComplete?: number
   isBlocked?: boolean
   assigneeResourceUids?: number[]
+  dependencies?: DependencyDTO[]
 }
 
 async function unwrap(response: Response, fallbackMessage: string): Promise<Response> {
