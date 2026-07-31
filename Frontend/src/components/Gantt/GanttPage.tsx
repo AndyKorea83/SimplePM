@@ -266,6 +266,23 @@ export function GanttPage() {
     }
   }
 
+  // Клик по линии связи на диаграмме и последующее удаление (issue #39) —
+  // убираем одну запись из dependencies преемника и шлём весь список целиком
+  // (тот же паттерн полной замены, что и у assigneeResourceUids).
+  const handleDeleteDependency = async (successorUid: number, predecessorUid: number, type: number) => {
+    const successor = project?.tasks.find((t) => t.uid === successorUid)
+    if (!successor) return
+    const nextDependencies = (successor.dependencies ?? []).filter(
+      (d) => !(d.predecessorUid === predecessorUid && d.type === type),
+    )
+    try {
+      await updateTask(successorUid, { dependencies: nextDependencies })
+      await refetch()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   if (error) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-white dark:bg-[#1a1a1a]">
@@ -357,6 +374,7 @@ export function GanttPage() {
         onEditTask={openEditForm}
         onStartChange={handleStartChange}
         onFinishChange={handleFinishChange}
+        onDeleteDependency={handleDeleteDependency}
       />
       <BottomStatusBar
         totalTasks={totalTasks}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTheme } from '../../theme/ThemeContext'
 import { pxPerDay, taskBarSpan } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
@@ -7,6 +7,10 @@ import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
 const ARROW_SIZE = 6
 const MIN_EDGE_INSET_PX = 5
+// Ширина невидимого "хитбокса" под линией — сама линия всего 1.5px, кликнуть
+// в неё точно неудобно, поэтому под ней рисуется прозрачная широкая копия.
+const HIT_STROKE_WIDTH = 10
+const DELETE_BUTTON_RADIUS = 8
 
 // Точка выхода — середина последнего (или первого, для НО/НН) дня задачи,
 // а не сама граница бара, иначе линия визуально сливается с краем бара.
@@ -60,19 +64,39 @@ function buildElbowPath(sourceX: number, sourceY: number, targetX: number, targe
   return `M ${sourceX} ${sourceY} L ${sourceX} ${targetY} L ${targetX} ${targetY}`
 }
 
+type ConnectorPath = {
+  key: string
+  d: string
+  successorUid: number
+  predecessorUid: number
+  type: number
+  midX: number
+  midY: number
+}
+
 type DependencyConnectorsProps = {
   visible: GanttTaskNode[]
   rowTops: number[]
   density: GanttDensity
   scale: GanttScale
   rangeStart: Date
+  onDeleteDependency: (successorUid: number, predecessorUid: number, type: number) => void
 }
 
-export function DependencyConnectors({ visible, rowTops, density, scale, rangeStart }: DependencyConnectorsProps) {
+export function DependencyConnectors({
+  visible,
+  rowTops,
+  density,
+  scale,
+  rangeStart,
+  onDeleteDependency,
+}: DependencyConnectorsProps) {
   const { theme } = useTheme()
   // Контраст text-secondary (см. architect.md), а не приглушённый цвет
   // гридлайна — линию связи нужно видеть отчётливо на фоне сетки/баров.
   const strokeColor = theme === 'dark' ? '#94a3b8' : '#475569'
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const selectedGroupRef = useRef<SVGGElement>(null)
 
   const indexByUid = useMemo(() => {
     const map = new Map<number, number>()
@@ -80,7 +104,7 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
     return map
   }, [visible])
 
-  const paths: { key: string; d: string }[] = []
+  const paths: ConnectorPath[] = []
   visible.forEach((node, index) => {
     for (const dep of node.dependencies ?? []) {
       const predIndex = indexByUid.get(dep.predecessorUid)
@@ -102,14 +126,47 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
       paths.push({
         key: `${dep.predecessorUid}-${node.uid}-${dep.type}`,
         d: buildElbowPath(sourceX, predY, targetX, succY),
+        successorUid: node.uid,
+        predecessorUid: dep.predecessorUid,
+        type: dep.type,
+        midX: sourceX,
+        midY: (predY + succY) / 2,
       })
     }
   })
 
+  const selected = paths.find((p) => p.key === selectedKey) ?? null
+
+  // Клик вне выбранной линии/кнопки удаления — снять выделение; Escape — то
+  // же самое; Delete/Backspace — удалить выбранную связь. Тот же паттерн
+  // (document-листенеры, снимаются в cleanup), что и у попапов в проекте.
+  useEffect(() => {
+    if (!selected) return
+    const handlePointerDown = (e: MouseEvent) => {
+      if (selectedGroupRef.current && !selectedGroupRef.current.contains(e.target as Node)) {
+        setSelectedKey(null)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedKey(null)
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        onDeleteDependency(selected.successorUid, selected.predecessorUid, selected.type)
+        setSelectedKey(null)
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selected, onDeleteDependency])
+
   if (paths.length === 0) return null
 
   return (
-    <svg className="pointer-events-none absolute inset-0 z-[25]" width="100%" height="100%">
+    <svg className="absolute inset-0 z-[25]" width="100%" height="100%" style={{ pointerEvents: 'none' }}>
       <defs>
         <marker
           id="gantt-dependency-arrow"
@@ -123,16 +180,51 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
           <path d={`M0,0 L${ARROW_SIZE},${ARROW_SIZE / 2} L0,${ARROW_SIZE} Z`} fill={strokeColor} />
         </marker>
       </defs>
-      {paths.map((path) => (
-        <path
-          key={path.key}
-          d={path.d}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={1.5}
-          markerEnd="url(#gantt-dependency-arrow)"
-        />
-      ))}
+      {paths.map((path) => {
+        const isSelected = path.key === selectedKey
+        return (
+          <g key={path.key}>
+            <path
+              d={path.d}
+              fill="none"
+              stroke={isSelected ? '#4078d9' : strokeColor}
+              strokeWidth={isSelected ? 2.5 : 1.5}
+              markerEnd="url(#gantt-dependency-arrow)"
+            />
+            {/* Невидимый широкий хитбокс поверх тонкой линии — реальная
+                зона клика для выбора. */}
+            <path
+              d={path.d}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={HIT_STROKE_WIDTH}
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+              onClick={() => setSelectedKey(path.key)}
+            />
+          </g>
+        )
+      })}
+      {selected && (
+        <g ref={selectedGroupRef}>
+          <circle
+            cx={selected.midX}
+            cy={selected.midY}
+            r={DELETE_BUTTON_RADIUS}
+            fill="#d93333"
+            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+            onClick={() => {
+              onDeleteDependency(selected.successorUid, selected.predecessorUid, selected.type)
+              setSelectedKey(null)
+            }}
+          />
+          <path
+            d={`M ${selected.midX - 3} ${selected.midY - 3} L ${selected.midX + 3} ${selected.midY + 3} M ${selected.midX + 3} ${selected.midY - 3} L ${selected.midX - 3} ${selected.midY + 3}`}
+            stroke="white"
+            strokeWidth={1.5}
+            style={{ pointerEvents: 'none' }}
+          />
+        </g>
+      )}
     </svg>
   )
 }

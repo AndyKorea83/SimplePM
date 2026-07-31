@@ -77,6 +77,7 @@ type GanttWorkspaceProps = {
   onEditTask: (uid: number) => void
   onStartChange: (uid: number, isoDate: string) => void
   onFinishChange: (uid: number, isoDate: string) => void
+  onDeleteDependency: (successorUid: number, predecessorUid: number, type: number) => void
 }
 
 export function GanttWorkspace({
@@ -92,6 +93,7 @@ export function GanttWorkspace({
   onEditTask,
   onStartChange,
   onFinishChange,
+  onDeleteDependency,
 }: GanttWorkspaceProps) {
   const metrics = DENSITY_METRICS[density]
   const visible = flattenVisible(roots, collapsed)
@@ -347,6 +349,7 @@ export function GanttWorkspace({
               density={density}
               scale={scale}
               rangeStart={renderRangeStart}
+              onDeleteDependency={onDeleteDependency}
             />
 
             {/* Layer 5: task/group bars, on top of everything */}
