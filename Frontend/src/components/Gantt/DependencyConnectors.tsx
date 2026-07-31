@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useTheme } from '../../theme/ThemeContext'
 import { taskBarSpan } from './dateGrid'
+import { DENSITY_METRICS } from './densityMetrics'
 import { rowHeightOf } from './GanttRow'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
@@ -21,6 +22,13 @@ function edgeFor(type: number, predSpan: BarSpan, succSpan: BarSpan): { sourceX:
     default: // 1, Окончание -> Начало — самый частый случай
       return { sourceX: predSpan.right, targetX: succSpan.left }
   }
+}
+
+// Половина высоты самого бара (не строки) — групповой бар рисуется тонкой
+// 4px-линией по центру строки (см. GanttRowBar), у обычной задачи высота
+// берётся из density-метрик.
+function barHalfHeight(node: GanttTaskNode, density: GanttDensity): number {
+  return node.isSummary ? 2 : DENSITY_METRICS[density].barHeight / 2
 }
 
 // Ломаная "уголком": сначала вертикальный отрезок вниз/вверх строго по
@@ -65,8 +73,12 @@ export function DependencyConnectors({ visible, rowTops, density, scale, rangeSt
       const predNode = visible[predIndex]
       const predSpan = taskBarSpan(predNode, scale, rangeStart)
       const succSpan = taskBarSpan(node, scale, rangeStart)
-      const predY = rowTops[predIndex] + rowHeightOf(predNode, density) / 2
+      const predMidY = rowTops[predIndex] + rowHeightOf(predNode, density) / 2
       const succY = rowTops[index] + rowHeightOf(node, density) / 2
+      // Точка выхода — нижний или верхний край САМОГО БАРА (не середина
+      // строки), в сторону строки преемника: иначе линия визуально
+      // начинается прямо на правой/левой границе бара, а не под/над ним.
+      const predY = predMidY + (succY > predMidY ? 1 : -1) * barHalfHeight(predNode, density)
       const { sourceX, targetX } = edgeFor(dep.type, predSpan, succSpan)
 
       paths.push({
