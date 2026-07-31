@@ -21,6 +21,9 @@ type TaskFormProps = {
   resourceOptions: { uid: number; name: string }[]
   predecessorOptions: { uid: number; label: string }[]
   hasChildren: boolean
+  // Группа: % выполнения считается backend'ом по подзадачам и не
+  // редактируется вручную (см. memstore.recomputeSummaryProgress).
+  isSummary: boolean
   onSubmit: (values: TaskFormValues) => Promise<void>
   onDelete?: () => Promise<void>
   onClose: () => void
@@ -45,6 +48,7 @@ export function TaskForm({
   resourceOptions,
   predecessorOptions,
   hasChildren,
+  isSummary,
   onSubmit,
   onDelete,
   onClose,
@@ -176,17 +180,23 @@ export function TaskForm({
           </Field>
         </div>
 
-        <Field label={`% выполнения: ${values.percentComplete}%`}>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={values.percentComplete}
-            onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
-            className="w-full cursor-pointer accent-[#4078d9]"
-          />
-        </Field>
+        {isSummary ? (
+          <Field label={`% выполнения: ${values.percentComplete}% (считается автоматически по подзадачам)`}>
+            <input type="range" min={0} max={100} value={values.percentComplete} disabled className="w-full accent-[#94a3b8]" />
+          </Field>
+        ) : (
+          <Field label={`% выполнения: ${values.percentComplete}%`}>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={values.percentComplete}
+              onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
+              className="w-full cursor-pointer accent-[#4078d9]"
+            />
+          </Field>
+        )}
 
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-[13px] text-[#475569] dark:text-[#80808c]">

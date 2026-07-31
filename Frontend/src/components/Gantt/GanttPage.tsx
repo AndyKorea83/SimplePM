@@ -224,11 +224,14 @@ export function GanttPage() {
         dependencies: values.dependencies,
       })
     } else if (formState?.task) {
+      // % выполнения группы считается backend'ом по подзадачам — не
+      // отправляем текущее (нередактируемое в форме) значение, чтобы не
+      // напороться на серверную валидацию, запрещающую менять его вручную.
       await updateTask(formState.task.uid, {
         name: values.name,
         start,
         finish,
-        percentComplete: values.percentComplete,
+        percentComplete: formState.task.isSummary ? undefined : values.percentComplete,
         isBlocked: values.isBlocked,
         assigneeResourceUids: values.assigneeResourceUids,
         dependencies: values.dependencies,
@@ -371,6 +374,7 @@ export function GanttPage() {
           resourceOptions={resourceOptions}
           predecessorOptions={predecessorOptions}
           hasChildren={formHasChildren}
+          isSummary={formState.mode === 'edit' ? !!formState.task?.isSummary : false}
           onSubmit={handleFormSubmit}
           onDelete={formState.mode === 'edit' ? handleDeleteTask : undefined}
           onClose={closeForm}
