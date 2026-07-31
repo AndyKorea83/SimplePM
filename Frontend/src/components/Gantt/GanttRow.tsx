@@ -3,7 +3,7 @@ import chevronDownIcon from '../../assets/icons/chevron-down.svg'
 import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
-import { dateToX, durationToWidth, formatDayMonth, pxPerDay, toDateInputValue } from './dateGrid'
+import { formatDayMonth, pxPerDay, taskBarSpan, toDateInputValue } from './dateGrid'
 import { STATUS_COLORS, type TaskStatus } from './status'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 import { useTheme } from '../../theme/ThemeContext'
@@ -264,13 +264,8 @@ export function GanttRowBar({
   const effectiveFinish =
     drag?.edge === 'finish' ? addDays(new Date(node.finish), drag.deltaDays) : new Date(node.finish)
 
-  const left = dateToX(effectiveStart, rangeStart, scale)
-  // A group/stage row spans its children's date range regardless of its own
-  // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
-  // on summary tasks too, which would otherwise collapse the aggregate bar
-  // to a single point.
-  const isPointInTime = node.isMilestone && !node.isSummary
-  const width = isPointInTime ? 0 : durationToWidth(effectiveStart, effectiveFinish, scale)
+  const { left, right, isPoint: isPointInTime } = taskBarSpan(node, scale, rangeStart, effectiveStart, effectiveFinish)
+  const width = right - left
 
   // Drags a bar's start or finish edge by whole days, following the mouse
   // horizontally; committed as a single onStartChange/onFinishChange call

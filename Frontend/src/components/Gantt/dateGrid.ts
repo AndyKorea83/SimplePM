@@ -1,4 +1,4 @@
-import type { GanttScale } from './types'
+import type { GanttScale, GanttTaskNode } from './types'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -51,6 +51,30 @@ export function dateToX(date: Date, rangeStart: Date, scale: GanttScale): number
 // day still spans that one full day, not zero width, so +1 day here.
 export function durationToWidth(start: Date, finish: Date, scale: GanttScale): number {
   return Math.max(daysBetween(start, finish) + 1, 0) * pxPerDay(scale)
+}
+
+// Shared bar geometry — used by GanttRowBar to position the bar itself and
+// by DependencyConnectors to anchor connector lines to its edges, so the two
+// never disagree about where a bar actually is. overrideStart/overrideFinish
+// let GanttRowBar pass its in-progress edge-drag preview dates instead of
+// the task's committed ones.
+export function taskBarSpan(
+  node: GanttTaskNode,
+  scale: GanttScale,
+  rangeStart: Date,
+  overrideStart?: Date,
+  overrideFinish?: Date,
+): { left: number; right: number; isPoint: boolean } {
+  const start = overrideStart ?? new Date(node.start)
+  const finish = overrideFinish ?? new Date(node.finish)
+  // A group/stage row spans its children's date range regardless of its own
+  // isMilestone flag — some MSPDI exports (incl. our sample) set Milestone=1
+  // on summary tasks too, which would otherwise collapse the aggregate bar
+  // to a single point.
+  const isPoint = node.isMilestone && !node.isSummary
+  const left = dateToX(start, rangeStart, scale)
+  const width = isPoint ? 0 : durationToWidth(start, finish, scale)
+  return { left, right: left + width, isPoint }
 }
 
 // Pushes the project's actual start date back to the start of its coarser
