@@ -5,6 +5,7 @@ import { formatDateRange } from './dateGrid'
 import { BottomStatusBar } from './BottomStatusBar'
 import { GanttHeader } from './GanttHeader'
 import { GanttWorkspace } from './GanttWorkspace'
+import { GroupForm, type GroupFormValues } from './GroupForm'
 import { deriveStatus, type TaskStatus } from './status'
 import { TaskForm, type TaskFormValues } from './TaskForm'
 import type { GanttDensity, GanttScale, ProjectDTO, TaskDTO } from './types'
@@ -86,6 +87,45 @@ export function GanttPage() {
     for (const [taskUid, resourceUids] of resourceUidsByTaskUid) {
       const names = [...resourceUids].map((uid) => nameByResourceUid.get(uid)).filter((n): n is string => !!n)
       if (names.length) map.set(taskUid, names.join(', '))
+    }
+    return map
+  }, [project, resourceUidsByTaskUid])
+
+  // Для формы группы (GroupForm): исполнители — не редактируемый мультиселект,
+  // а список тех, кто назначен на вложенные (любой глубины) задачи; и флаг
+  // "внутри есть заблокированная задача" — вместо точечного чекбокса группы.
+  const groupInfoByTaskUid = useMemo(() => {
+    const map = new Map<number, { assigneeNames: string[]; hasBlockedDescendant: boolean }>()
+    if (!project) return map
+    const childrenByParent = new Map<number, number[]>()
+    for (const t of project.tasks) {
+      if (t.parentUid == null) continue
+      const arr = childrenByParent.get(t.parentUid) ?? []
+      arr.push(t.uid)
+      childrenByParent.set(t.parentUid, arr)
+    }
+    const nameByResourceUid = new Map(project.resources.map((r) => [r.uid, r.name]))
+    const isBlockedByUid = new Map(project.tasks.map((t) => [t.uid, t.isBlocked]))
+    for (const summary of project.tasks) {
+      if (!summary.isSummary) continue
+      const descendantUids = new Set<number>()
+      const queue = [...(childrenByParent.get(summary.uid) ?? [])]
+      while (queue.length > 0) {
+        const uid = queue.shift()!
+        if (descendantUids.has(uid)) continue
+        descendantUids.add(uid)
+        queue.push(...(childrenByParent.get(uid) ?? []))
+      }
+      const assigneeNames = new Set<string>()
+      let hasBlockedDescendant = false
+      for (const uid of descendantUids) {
+        if (isBlockedByUid.get(uid)) hasBlockedDescendant = true
+        for (const resourceUid of resourceUidsByTaskUid.get(uid) ?? []) {
+          const name = nameByResourceUid.get(resourceUid)
+          if (name) assigneeNames.add(name)
+        }
+      }
+      map.set(summary.uid, { assigneeNames: [...assigneeNames].sort(), hasBlockedDescendant })
     }
     return map
   }, [project, resourceUidsByTaskUid])
@@ -226,19 +266,31 @@ export function GanttPage() {
         dependencies: values.dependencies,
       })
     } else if (formState?.task) {
-      // % выполнения группы считается backend'ом по подзадачам — не
-      // отправляем текущее (нередактируемое в форме) значение, чтобы не
-      // напороться на серверную валидацию, запрещающую менять его вручную.
+      // TaskForm теперь используется только для не-групповых задач (группы
+      // редактируются через GroupForm) — percentComplete всегда безопасно
+      // отправлять, серверная валидация групп сюда не попадает.
       await updateTask(formState.task.uid, {
         name: values.name,
         start,
         finish,
-        percentComplete: formState.task.isSummary ? undefined : values.percentComplete,
+        percentComplete: values.percentComplete,
         isBlocked: values.isBlocked,
         assigneeResourceUids: values.assigneeResourceUids,
         dependencies: values.dependencies,
       })
     }
+    await refetch()
+    setFormState(null)
+  }
+
+  // Группа: редактируются только название и предшественники — даты берутся
+  // от подзадач, % и "заблокировано" не редактируются (см. GroupForm).
+  const handleGroupFormSubmit = async (values: GroupFormValues) => {
+    if (!formState?.task) return
+    await updateTask(formState.task.uid, {
+      name: values.name,
+      dependencies: values.dependencies,
+    })
     await refetch()
     setFormState(null)
   }
@@ -365,6 +417,23 @@ export function GanttPage() {
       ? project.tasks.some((t) => t.parentUid === formState.task!.uid)
       : false
 
+  // Группа редактируется отдельной формой (GroupForm) — см. её собственный
+  // комментарий о том, чем она отличается от TaskForm.
+  const isEditingGroup = formState?.mode === 'edit' && !!formState.task?.isSummary
+
+  const groupFormInitialValues: GroupFormValues | null =
+    isEditingGroup && formState?.task
+      ? {
+          name: formState.task.name,
+          parentUid: formState.task.parentUid ?? null,
+          dependencies: (formState.task.dependencies ?? []).map((d) => ({
+            predecessorUid: d.predecessorUid,
+            type: d.type,
+          })),
+        }
+      : null
+  const groupInfo = isEditingGroup && formState?.task ? groupInfoByTaskUid.get(formState.task.uid) : undefined
+
   return (
     <div className="flex h-full w-full flex-col bg-[var(--surface)]">
       <GanttHeader
@@ -403,7 +472,22 @@ export function GanttPage() {
         activeStatuses={activeStatuses}
         onToggleStatus={toggleStatusFilter}
       />
-      {formState && formInitialValues && (
+      {isEditingGroup && groupFormInitialValues && formState?.task && (
+        <GroupForm
+          initialValues={groupFormInitialValues}
+          start={formState.task.start}
+          finish={formState.task.finish}
+          percentComplete={formState.task.percentComplete}
+          assigneeNames={groupInfo?.assigneeNames ?? []}
+          hasBlockedDescendant={groupInfo?.hasBlockedDescendant ?? false}
+          parentOptions={parentOptions}
+          predecessorOptions={predecessorOptions}
+          onSubmit={handleGroupFormSubmit}
+          onDelete={handleDeleteTask}
+          onClose={closeForm}
+        />
+      )}
+      {formState && !isEditingGroup && formInitialValues && (
         <TaskForm
           mode={formState.mode}
           initialValues={formInitialValues}
@@ -411,7 +495,6 @@ export function GanttPage() {
           resourceOptions={resourceOptions}
           predecessorOptions={predecessorOptions}
           hasChildren={formHasChildren}
-          isSummary={formState.mode === 'edit' ? !!formState.task?.isSummary : false}
           onSubmit={handleFormSubmit}
           onDelete={formState.mode === 'edit' ? handleDeleteTask : undefined}
           onClose={closeForm}
