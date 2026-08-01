@@ -1,6 +1,6 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { DEPENDENCY_TYPE_OPTIONS } from './types'
-import { PredecessorPicker } from './PredecessorPicker'
+import { useState, type FormEvent } from 'react'
+import { DependenciesField } from './DependenciesField'
+import { Field, inputClass } from './FormField'
 
 export type TaskFormValues = {
   name: string
@@ -20,25 +20,10 @@ type TaskFormProps = {
   resourceOptions: { uid: number; name: string }[]
   predecessorOptions: { uid: number; label: string }[]
   hasChildren: boolean
-  // Группа: % выполнения считается backend'ом по подзадачам и не
-  // редактируется вручную (см. memstore.recomputeSummaryProgress).
-  isSummary: boolean
   onSubmit: (values: TaskFormValues) => Promise<void>
   onDelete?: () => Promise<void>
   onClose: () => void
 }
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-[13px] text-[var(--text-secondary)]">
-      {label}
-      {children}
-    </label>
-  )
-}
-
-const inputClass =
-  'rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] dark:bg-[#1c1c1e]'
 
 export function TaskForm({
   mode,
@@ -47,7 +32,6 @@ export function TaskForm({
   resourceOptions,
   predecessorOptions,
   hasChildren,
-  isSummary,
   onSubmit,
   onDelete,
   onClose,
@@ -55,8 +39,6 @@ export function TaskForm({
   const [values, setValues] = useState<TaskFormValues>(initialValues)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const addPredecessorRef = useRef<HTMLButtonElement>(null)
-  const [predecessorAnchor, setPredecessorAnchor] = useState<DOMRect | null>(null)
 
   const toggleAssignee = (uid: number) => {
     setValues((prev) => ({
@@ -87,11 +69,6 @@ export function TaskForm({
       dependencies: prev.dependencies.map((d) => (d.predecessorUid === predecessorUid ? { ...d, type } : d)),
     }))
   }
-
-  const availablePredecessors = predecessorOptions.filter(
-    (option) => !values.dependencies.some((d) => d.predecessorUid === option.uid),
-  )
-  const predecessorLabel = (uid: number) => predecessorOptions.find((o) => o.uid === uid)?.label ?? `#${uid}`
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -179,36 +156,17 @@ export function TaskForm({
           </Field>
         </div>
 
-        {isSummary ? (
-          <Field label="% выполнения">
-            <div className="flex items-center gap-2">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
-                <div
-                  className="h-full rounded-full bg-[#94a3b8]"
-                  style={{ width: `${values.percentComplete}%` }}
-                />
-              </div>
-              <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">
-                {values.percentComplete}%
-              </span>
-            </div>
-            <span className="text-[12px] text-[var(--text-secondary)]">
-              Считается автоматически по подзадачам
-            </span>
-          </Field>
-        ) : (
-          <Field label={`% выполнения: ${values.percentComplete}%`}>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={values.percentComplete}
-              onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
-              className="w-full cursor-pointer accent-[#4078d9]"
-            />
-          </Field>
-        )}
+        <Field label={`% выполнения: ${values.percentComplete}%`}>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={values.percentComplete}
+            onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
+            className="w-full cursor-pointer accent-[#4078d9]"
+          />
+        </Field>
 
         <label className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
           <input
@@ -234,51 +192,13 @@ export function TaskForm({
           </div>
         </Field>
 
-        <Field label="Предшественники">
-          <div className="flex flex-col gap-1">
-            {values.dependencies.map((dep) => (
-              <div key={dep.predecessorUid} className="flex items-center gap-2">
-                <span className="flex-1 truncate text-[13px] text-[var(--text-primary)]">
-                  {predecessorLabel(dep.predecessorUid)}
-                </span>
-                <select
-                  className={`${inputClass} !py-1`}
-                  value={dep.type}
-                  onChange={(e) => changeDependencyType(dep.predecessorUid, Number(e.target.value))}
-                >
-                  {DEPENDENCY_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => removeDependency(dep.predecessorUid)}
-                  className="cursor-pointer rounded px-2 py-1 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--border)]"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              ref={addPredecessorRef}
-              type="button"
-              onClick={() => setPredecessorAnchor(addPredecessorRef.current!.getBoundingClientRect())}
-              className="-mx-2 self-start rounded px-2 py-1 text-left text-[13px] text-[#4078d9] hover:bg-[var(--border)]"
-            >
-              + Добавить предшественника
-            </button>
-          </div>
-        </Field>
-        {predecessorAnchor && (
-          <PredecessorPicker
-            options={availablePredecessors}
-            anchorRect={predecessorAnchor}
-            onSelect={addDependency}
-            onClose={() => setPredecessorAnchor(null)}
-          />
-        )}
+        <DependenciesField
+          dependencies={values.dependencies}
+          predecessorOptions={predecessorOptions}
+          onAdd={addDependency}
+          onRemove={removeDependency}
+          onChangeType={changeDependencyType}
+        />
 
         {error && <p className="text-[13px] text-[#d93333]">{error}</p>}
 
