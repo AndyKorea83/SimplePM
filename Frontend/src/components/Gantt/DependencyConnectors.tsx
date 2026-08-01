@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { pxPerDay, taskBarSpan } from './dateGrid'
+import { dateToX, pxPerDay, startOfDay, taskBarSpan } from './dateGrid'
 import { DENSITY_METRICS } from './densityMetrics'
 import { rowHeightOf } from './GanttRow'
 import type { GanttDensity, GanttScale, GanttTaskNode } from './types'
 
 const ARROW_SIZE = 6
 const MIN_EDGE_INSET_PX = 5
+// Запас над/под баром преемника для горизонтального подхода при входе через
+// верхнюю/нижнюю грань (см. overlapsOnLeft ниже) — без него горизонтальный
+// отрезок шёл бы на высоте центра бара (внутри его же тела), и только в
+// последний момент дёргался к грани на пару пикселей: визуально неотличимо
+// от входа сбоку. С запасом линия идёт СНАРУЖИ бара и заходит в грань явным
+// вертикальным отрезком, видимым как вход сверху/снизу.
+const TOP_ENTRY_CLEARANCE_PX = 10
 // Ширина невидимого "хитбокса" под линией — сама линия всего 1.5px, кликнуть
 // в неё точно неудобно, поэтому под ней рисуется прозрачная широкая копия.
 const HIT_STROKE_WIDTH = 16
@@ -26,22 +33,25 @@ type BarSpan = { left: number; right: number; isPoint: boolean }
 // преемника — использовать для каждого из 4 типов связи (ОО/ОН/НО/НН).
 // Точка выхода смещена внутрь бара на edgeInset — веха (единственная точка
 // во времени, left===right) остаётся исключением: смещать её некуда.
+// targetSide фиксирует, в какую грань преемника целимся изначально — нужно
+// отдельно от targetX, чтобы понять, применимо ли для этой связи "пересечение
+// по времени → вход сверху/снизу" (см. ниже, актуально только для left).
 function edgeFor(
   type: number,
   predSpan: BarSpan,
   succSpan: BarSpan,
   scale: GanttScale,
-): { sourceX: number; targetX: number } {
+): { sourceX: number; targetX: number; targetSide: 'left' | 'right' } {
   const inset = predSpan.isPoint ? 0 : edgeInset(scale)
   switch (type) {
     case 0: // Окончание -> Окончание
-      return { sourceX: predSpan.right - inset, targetX: succSpan.right }
+      return { sourceX: predSpan.right - inset, targetX: succSpan.right, targetSide: 'right' }
     case 2: // Начало -> Окончание
-      return { sourceX: predSpan.left + inset, targetX: succSpan.right }
+      return { sourceX: predSpan.left + inset, targetX: succSpan.right, targetSide: 'right' }
     case 3: // Начало -> Начало
-      return { sourceX: predSpan.left + inset, targetX: succSpan.left }
+      return { sourceX: predSpan.left + inset, targetX: succSpan.left, targetSide: 'left' }
     default: // 1, Окончание -> Начало — самый частый случай
-      return { sourceX: predSpan.right - inset, targetX: succSpan.left }
+      return { sourceX: predSpan.right - inset, targetX: succSpan.left, targetSide: 'left' }
   }
 }
 
@@ -52,15 +62,21 @@ function barHalfHeight(node: GanttTaskNode, density: GanttDensity): number {
   return node.isSummary ? 2 : DENSITY_METRICS[density].barHeight / 2
 }
 
-// Ломаная "уголком": сначала вертикальный отрезок вниз/вверх строго по
-// x предшественника (без горизонтальной заглушки — иначе при задачах
-// впритык друг к другу заглушка "перелетает" через начало преемника, и
-// стрелка влетает в него не с той стороны), затем горизонтальный подход
-// к точке входа. marker-end сам разворачивается по направлению последнего
-// сегмента (orient="auto").
-function buildElbowPath(sourceX: number, sourceY: number, targetX: number, targetY: number): string {
-  if (sourceY === targetY) return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
-  return `M ${sourceX} ${sourceY} L ${sourceX} ${targetY} L ${targetX} ${targetY}`
+// Ломаная "уголком": вертикальный отрезок вниз/вверх строго по x
+// предшественника (без горизонтальной заглушки — иначе при задачах впритык
+// друг к другу заглушка "перелетает" через начало преемника, и стрелка
+// влетает в него не с той стороны) до уровня viaY, затем горизонтальный
+// подход к targetX, и если точка входа (targetY) не на этом же уровне —
+// ещё один вертикальный отрезок до неё (случай входа сверху/снизу при
+// пересечении задач по времени, см. вызов ниже). marker-end сам
+// разворачивается по направлению последнего сегмента (orient="auto").
+function buildElbowPath(sourceX: number, sourceY: number, targetX: number, targetY: number, viaY: number): string {
+  const points: [number, number][] = [[sourceX, sourceY]]
+  if (sourceY !== viaY) points.push([sourceX, viaY])
+  if (points[points.length - 1][0] !== targetX) points.push([targetX, viaY])
+  if (viaY !== targetY) points.push([targetX, targetY])
+  if (points.length === 1) points.push([targetX, targetY])
+  return points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
 }
 
 type ConnectorPath = {
@@ -123,21 +139,39 @@ export function DependencyConnectors({
       const predSpan = taskBarSpan(predNode, scale, rangeStart)
       const succSpan = taskBarSpan(node, scale, rangeStart)
       const predMidY = rowTops[predIndex] + rowHeightOf(predNode, density) / 2
-      const succY = rowTops[index] + rowHeightOf(node, density) / 2
+      const succMidY = rowTops[index] + rowHeightOf(node, density) / 2
       // Точка выхода — нижний или верхний край САМОГО БАРА (не середина
       // строки), в сторону строки преемника: иначе линия визуально
       // начинается прямо на правой/левой границе бара, а не под/над ним.
-      const predY = predMidY + (succY > predMidY ? 1 : -1) * barHalfHeight(predNode, density)
-      const { sourceX, targetX } = edgeFor(dep.type, predSpan, succSpan, scale)
+      const predY = predMidY + (succMidY > predMidY ? 1 : -1) * barHalfHeight(predNode, density)
+      const { sourceX, targetX, targetSide } = edgeFor(dep.type, predSpan, succSpan, scale)
+
+      // Предшественник и преемник пересекаются по времени (конец
+      // предшественника заходит за начало преемника) — вход в левую грань
+      // выглядел бы так, будто стрелка ныряет сквозь бар преемника сбоку.
+      // Вместо этого заходим через верхнюю/нижнюю грань, по центру первого
+      // дня преемника.
+      const overlapsOnLeft = targetSide === 'left' && predSpan.right > succSpan.left
+      const targetX2 = overlapsOnLeft
+        ? dateToX(startOfDay(new Date(node.start)), rangeStart, scale) + pxPerDay(scale) / 2
+        : targetX
+      const entrySign = predY < succMidY ? -1 : 1
+      const targetY = overlapsOnLeft ? succMidY + entrySign * barHalfHeight(node, density) : succMidY
+      // Уровень горизонтального подхода: при входе через грань — снаружи
+      // бара (за пределами его половины высоты + запас), иначе — как раньше,
+      // на уровне центра строки преемника.
+      const hopY = overlapsOnLeft
+        ? succMidY + entrySign * (barHalfHeight(node, density) + TOP_ENTRY_CLEARANCE_PX)
+        : succMidY
 
       paths.push({
         key: `${dep.predecessorUid}-${node.uid}-${dep.type}`,
-        d: buildElbowPath(sourceX, predY, targetX, succY),
+        d: buildElbowPath(sourceX, predY, targetX2, targetY, hopY),
         successorUid: node.uid,
         predecessorUid: dep.predecessorUid,
         type: dep.type,
         midX: sourceX,
-        midY: (predY + succY) / 2,
+        midY: (predY + succMidY) / 2,
       })
     }
   })

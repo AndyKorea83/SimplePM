@@ -1,53 +1,49 @@
 import { useState, type FormEvent } from 'react'
+import { formatDayMonth } from './dateGrid'
 import { DependenciesField } from './DependenciesField'
 import { Field, inputClass } from './FormField'
 
-export type TaskFormValues = {
+export type GroupFormValues = {
   name: string
   parentUid: number | null
-  start: string
-  finish: string
-  percentComplete: number
-  isBlocked: boolean
-  assigneeResourceUids: number[]
   dependencies: { predecessorUid: number; type: number }[]
 }
 
-type TaskFormProps = {
-  mode: 'create' | 'edit'
-  initialValues: TaskFormValues
+type GroupFormProps = {
+  initialValues: GroupFormValues
+  start: string
+  finish: string
+  percentComplete: number
+  assigneeNames: string[]
+  hasBlockedDescendant: boolean
   parentOptions: { uid: number; label: string }[]
-  resourceOptions: { uid: number; name: string }[]
   predecessorOptions: { uid: number; label: string }[]
-  hasChildren: boolean
-  onSubmit: (values: TaskFormValues) => Promise<void>
-  onDelete?: () => Promise<void>
+  onSubmit: (values: GroupFormValues) => Promise<void>
+  onDelete: () => Promise<void>
   onClose: () => void
 }
 
-export function TaskForm({
-  mode,
+// Отдельная форма для групповых (summary) задач — в отличие от TaskForm:
+// даты только на просмотр (группа берёт диапазон от подзадач, вручную не
+// переносится), "Заблокирована" не редактируется точечно — вместо чекбокса
+// предупреждение, если среди подзадач есть заблокированные, а исполнители —
+// просто список тех, кто назначен на вложенные задачи (не мультиселект).
+export function GroupForm({
   initialValues,
+  start,
+  finish,
+  percentComplete,
+  assigneeNames,
+  hasBlockedDescendant,
   parentOptions,
-  resourceOptions,
   predecessorOptions,
-  hasChildren,
   onSubmit,
   onDelete,
   onClose,
-}: TaskFormProps) {
-  const [values, setValues] = useState<TaskFormValues>(initialValues)
+}: GroupFormProps) {
+  const [values, setValues] = useState<GroupFormValues>(initialValues)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const toggleAssignee = (uid: number) => {
-    setValues((prev) => ({
-      ...prev,
-      assigneeResourceUids: prev.assigneeResourceUids.includes(uid)
-        ? prev.assigneeResourceUids.filter((id) => id !== uid)
-        : [...prev.assigneeResourceUids, uid],
-    }))
-  }
 
   const addDependency = (predecessorUid: number) => {
     setValues((prev) => ({
@@ -84,11 +80,7 @@ export function TaskForm({
   }
 
   const handleDelete = async () => {
-    if (!onDelete) return
-    const message = hasChildren
-      ? 'Удалить задачу вместе со всеми подзадачами? Это действие нельзя отменить.'
-      : 'Удалить задачу? Это действие нельзя отменить.'
-    if (!window.confirm(message)) return
+    if (!window.confirm('Удалить группу вместе со всеми подзадачами? Это действие нельзя отменить.')) return
     setSaving(true)
     setError(null)
     try {
@@ -105,9 +97,7 @@ export function TaskForm({
         onSubmit={handleSubmit}
         className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-[var(--surface)] p-6 shadow-xl"
       >
-        <h2 className="text-[16px] font-bold text-[var(--text-primary)]">
-          {mode === 'create' ? 'Новая задача' : 'Редактирование задачи'}
-        </h2>
+        <h2 className="text-[16px] font-bold text-[var(--text-primary)]">Группа задач</h2>
 
         <Field label="Название">
           <input
@@ -137,59 +127,37 @@ export function TaskForm({
 
         <div className="flex gap-3">
           <Field label="Начало">
-            <input
-              required
-              type="date"
-              className={inputClass}
-              value={values.start}
-              onChange={(e) => setValues((prev) => ({ ...prev, start: e.target.value }))}
-            />
+            <p className={`${inputClass} !border-transparent !bg-transparent !px-0 dark:!bg-transparent`}>
+              {formatDayMonth(new Date(start))}
+            </p>
           </Field>
           <Field label="Окончание">
-            <input
-              required
-              type="date"
-              className={inputClass}
-              value={values.finish}
-              onChange={(e) => setValues((prev) => ({ ...prev, finish: e.target.value }))}
-            />
+            <p className={`${inputClass} !border-transparent !bg-transparent !px-0 dark:!bg-transparent`}>
+              {formatDayMonth(new Date(finish))}
+            </p>
           </Field>
         </div>
 
-        <Field label={`% выполнения: ${values.percentComplete}%`}>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={values.percentComplete}
-            onChange={(e) => setValues((prev) => ({ ...prev, percentComplete: Number(e.target.value) }))}
-            className="w-full cursor-pointer accent-[#4078d9]"
-          />
+        <Field label="% выполнения">
+          <div className="flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--border)]">
+              <div className="h-full rounded-full bg-[#94a3b8]" style={{ width: `${percentComplete}%` }} />
+            </div>
+            <span className="shrink-0 text-[13px] text-[var(--text-secondary)]">{percentComplete}%</span>
+          </div>
+          <span className="text-[12px] text-[var(--text-secondary)]">Считается автоматически по подзадачам</span>
         </Field>
 
-        <label className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-          <input
-            type="checkbox"
-            checked={values.isBlocked}
-            onChange={(e) => setValues((prev) => ({ ...prev, isBlocked: e.target.checked }))}
-          />
-          Заблокирована
-        </label>
+        {hasBlockedDescendant && (
+          <p className="rounded-lg bg-[#d93333]/10 px-3 py-2 text-[13px] text-[#d93333]">
+            Внутри группы есть заблокированные задачи
+          </p>
+        )}
 
         <Field label="Исполнители">
-          <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
-            {resourceOptions.map((resource) => (
-              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
-                <input
-                  type="checkbox"
-                  checked={values.assigneeResourceUids.includes(resource.uid)}
-                  onChange={() => toggleAssignee(resource.uid)}
-                />
-                {resource.name}
-              </label>
-            ))}
-          </div>
+          <p className="text-[13px] text-[var(--text-primary)]">
+            {assigneeNames.length > 0 ? assigneeNames.join(', ') : 'Нет назначенных исполнителей'}
+          </p>
         </Field>
 
         <DependenciesField
@@ -203,18 +171,14 @@ export function TaskForm({
         {error && <p className="text-[13px] text-[#d93333]">{error}</p>}
 
         <div className="flex items-center justify-between gap-2 pt-2">
-          {mode === 'edit' && onDelete ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="cursor-pointer rounded-lg border border-[#d93333] px-3 py-2 text-[13px] font-medium text-[#d93333] disabled:opacity-50"
-            >
-              Удалить
-            </button>
-          ) : (
-            <span />
-          )}
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving}
+            className="cursor-pointer rounded-lg border border-[#d93333] px-3 py-2 text-[13px] font-medium text-[#d93333] disabled:opacity-50"
+          >
+            Удалить
+          </button>
           <div className="flex gap-2">
             <button
               type="button"
