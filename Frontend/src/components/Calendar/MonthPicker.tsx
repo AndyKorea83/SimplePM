@@ -1,3 +1,5 @@
+import { SegmentedControl, SegmentedOption } from '../ui/SegmentedControl'
+
 // Matches the synthetic dataset's fixed span (see Backend's
 // internal/timesheet.RangeStart/RangeEnd) — this is a stage-1 PoC dataset,
 // not derived from any real data source, so the picker's range is hardcoded
@@ -32,7 +34,7 @@ type MonthPickerProps = {
 
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
   return (
-    <div className="flex shrink-0 items-center gap-[2px] rounded-lg bg-[#ebedf2] p-[3px] dark:bg-[#1c1c1e]">
+    <SegmentedControl>
       {MONTH_OPTIONS.map((option, index) => {
         const isNewYear = index === 0 || option.year !== MONTH_OPTIONS[index - 1].year
         const isActive = option.year === value.year && option.month === value.month
@@ -43,20 +45,17 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
                 {option.year}
               </p>
             )}
-            <button
-              type="button"
+            <SegmentedOption
+              active={isActive}
               onClick={() => onChange(option)}
-              className={`cursor-pointer whitespace-nowrap rounded-md px-2 py-[5px] text-[11px] ${
-                isActive
-                  ? 'bg-white font-semibold text-[var(--text-primary)] dark:bg-[#2a2a2e]'
-                  : 'font-medium text-[#475569] dark:text-[#666e7a]'
-              }`}
+              className="px-2 py-[5px] text-[11px]"
+              inactiveClassName="font-medium text-[#475569] dark:text-[#666e7a]"
             >
               {MONTH_LABELS[option.month - 1]}
-            </button>
+            </SegmentedOption>
           </div>
         )
       })}
-    </div>
+    </SegmentedControl>
   )
 }

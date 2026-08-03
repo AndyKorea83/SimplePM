@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import { Button } from '../ui/Button'
 import { fieldSurfaceClass, Select } from '../ui/Input'
+import { SegmentedControl, SegmentedOption } from '../ui/SegmentedControl'
 import calendarIcon from '../../assets/icons/calendar.svg'
 import settingsIcon from '../../assets/icons/settings.svg'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
@@ -18,14 +18,6 @@ const DENSITY_OPTIONS: { key: GanttDensity; lines: number }[] = [
   { key: 'dense', lines: 5 },
 ]
 
-function SegmentedControl({ children }: { children: ReactNode }) {
-  return (
-    <div className="bg-[#ebedf2] dark:bg-[#1c1c1e] flex gap-[2px] items-start p-[3px] rounded-lg shrink-0">
-      {children}
-    </div>
-  )
-}
-
 function ScaleSelector({
   scale,
   onChange,
@@ -35,23 +27,16 @@ function ScaleSelector({
 }) {
   return (
     <SegmentedControl>
-      {SCALE_OPTIONS.map((option) => {
-        const isActive = option.key === scale
-        return (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => onChange(option.key)}
-            className={`cursor-pointer whitespace-nowrap rounded-md px-3 py-[6px] text-[12px] ${
-              isActive
-                ? 'bg-white font-semibold text-[var(--text-primary)] dark:bg-[#2a2a2e]'
-                : 'font-medium text-[var(--text-secondary)]'
-            }`}
-          >
-            {option.label}
-          </button>
-        )
-      })}
+      {SCALE_OPTIONS.map((option) => (
+        <SegmentedOption
+          key={option.key}
+          active={option.key === scale}
+          onClick={() => onChange(option.key)}
+          className="px-3 py-[6px] text-[12px]"
+        >
+          {option.label}
+        </SegmentedOption>
+      ))}
     </SegmentedControl>
   )
 }
