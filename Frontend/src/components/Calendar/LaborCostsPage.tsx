@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import downloadIcon from '../../assets/icons/download.svg'
+import { Button } from '../ui/Button'
+import { PageShell } from '../ui/PageShell'
 import { downloadLaborCostsReport, fetchTimesheetMonth } from './api'
 import { ALL_EMPLOYEES_VALUE, EmployeeSelector } from './EmployeeSelector'
 import { MonthPicker, TIMESHEET_RANGE_END } from './MonthPicker'
@@ -142,7 +145,7 @@ export function LaborCostsPage() {
   const visibleEmployees = isAllEmployees ? employees : employees.filter((e) => e.uid === selectedEmployee)
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+    <PageShell>
       <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector
@@ -151,14 +154,14 @@ export function LaborCostsPage() {
           onChange={setSelectedEmployee}
         />
         <div className="h-px min-w-0 flex-1" />
-        <button
-          type="button"
+        <Button
+          variant="success"
+          className="shrink-0"
           onClick={() => downloadLaborCostsReport(year, month, isAllEmployees ? null : selectedEmployee)}
-          className="flex shrink-0 cursor-pointer items-center gap-[6px] rounded bg-[#2e8f57] px-3 py-[6px] text-[12px] font-medium text-white"
         >
-          <span className="size-[14px] shrink-0 rounded-[2px] bg-white/30" />
+          <img src={downloadIcon} alt="" className="size-[14px] shrink-0" />
           Выгрузить в Excel
-        </button>
+        </Button>
         <MonthPicker value={{ year, month }} onChange={setPeriod} />
       </div>
 
@@ -183,6 +186,6 @@ export function LaborCostsPage() {
           </>
         )}
       </div>
-    </div>
+    </PageShell>
   )
 }

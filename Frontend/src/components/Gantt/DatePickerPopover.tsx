@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useState } from 'react'
+import { Button } from '../ui/Button'
+import { Popover } from '../ui/Popover'
 import { toDateInputValue } from './dateGrid'
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
@@ -32,22 +33,6 @@ type DatePickerPopoverProps = {
 export function DatePickerPopover({ value, anchorRect, onChange, onClose }: DatePickerPopoverProps) {
   const selected = new Date(value)
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selected))
-  const popoverRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handlePointerDown = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) onClose()
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
 
   const totalDays = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 0).getDate()
   const leadingBlanks = mondayIndex(viewMonth)
@@ -56,30 +41,26 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
     ...Array.from({ length: totalDays }, (_, i) => new Date(viewMonth.getFullYear(), viewMonth.getMonth(), i + 1)),
   ]
 
-  return createPortal(
-    <div
-      ref={popoverRef}
-      className="fixed z-[100] w-[240px] rounded-lg border border-[var(--border)] bg-white p-3 shadow-lg dark:bg-[#1c1c1e]"
-      style={{ top: anchorRect.bottom + 4, left: anchorRect.left }}
-    >
+  return (
+    <Popover anchorRect={anchorRect} onClose={onClose} className="w-[240px] p-3">
       <div className="mb-2 flex items-center justify-between">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          className="px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)]"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--border)]"
         >
           ‹
-        </button>
+        </Button>
         <p className="text-[13px] font-semibold text-[var(--text-primary)]">
           {MONTH_NAMES_FULL[viewMonth.getMonth()]} {viewMonth.getFullYear()}
         </p>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          className="px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)]"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-          className="cursor-pointer rounded px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--border)]"
         >
           ›
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] text-[#94a3b8]">
         {WEEKDAY_LABELS.map((label) => (
@@ -109,7 +90,6 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
           ),
         )}
       </div>
-    </div>,
-    document.body,
+    </Popover>
   )
 }

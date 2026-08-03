@@ -1,9 +1,11 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { Fragment } from 'react'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
 import closeLightIcon from '../../assets/icons/close-light.svg'
 import closeDarkIcon from '../../assets/icons/close-dark.svg'
 import { useTheme } from '../../theme/ThemeContext'
+import { Button } from '../ui/Button'
+import { Popover } from '../ui/Popover'
+import { usePopoverAnchor } from '../ui/usePopoverAnchor'
 
 export const ALL_EMPLOYEES_VALUE = 'all'
 
@@ -49,49 +51,28 @@ function EmployeeDropdownPanel({
   onClose: () => void
 }) {
   const { theme } = useTheme()
-  const panelRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handlePointerDown = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose()
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [onClose])
-
   const columns = groupByColumns(employees)
 
-  return createPortal(
-    <div
-      ref={panelRef}
-      className="fixed z-[100] flex flex-col items-start gap-[10px] rounded-lg border border-[#e0e3eb] bg-white px-4 pb-[14px] pt-[10px] shadow-lg dark:border-[#383d47] dark:bg-[#24262e]"
-      style={{ top: anchorRect.bottom + 4, left: anchorRect.left }}
+  return (
+    <Popover
+      anchorRect={anchorRect}
+      onClose={onClose}
+      className="flex flex-col items-start gap-[10px] px-4 pb-[14px] pt-[10px]"
     >
       <div className="-mx-2 flex w-[calc(100%+16px)] items-center justify-between gap-4">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          className="px-2 py-1 text-left"
           onClick={() => {
             onChange(ALL_EMPLOYEES_VALUE)
             onClose()
           }}
-          className="cursor-pointer rounded px-2 py-1 text-left hover:bg-[#f2f5f7] dark:hover:bg-[#1c1c1e]"
         >
           <p className="text-[13px] font-medium text-[#262933] dark:text-[#e5e5eb]">Все сотрудники</p>
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 cursor-pointer rounded p-0.5 hover:bg-[#f2f5f7] dark:hover:bg-[#1c1c1e]"
-        >
+        </Button>
+        <Button variant="ghost" className="shrink-0 p-0.5" onClick={onClose}>
           <img src={theme === 'dark' ? closeDarkIcon : closeLightIcon} alt="Закрыть" className="size-6" />
-        </button>
+        </Button>
       </div>
       <div className="h-px w-full bg-[#d9dbe0] dark:bg-[rgba(64,66,77,0.5)]" />
       <div className="flex items-start gap-[54px]">
@@ -106,55 +87,47 @@ function EmployeeDropdownPanel({
                   <div className="h-px w-full bg-[rgba(89,102,128,0.3)] dark:bg-[rgba(140,153,178,0.4)]" />
                 </div>
                 {section.employees.map((employee) => (
-                  <button
+                  <Button
                     key={employee.uid}
-                    type="button"
+                    variant="ghost"
+                    className={`-mx-2 whitespace-nowrap px-2 py-[5px] text-left text-[13px] ${
+                      value === employee.uid ? 'text-[#d9941f]' : 'text-[#262933] dark:text-[#e0e0e5]'
+                    }`}
                     onClick={() => {
                       onChange(employee.uid)
                       onClose()
                     }}
-                    className={`-mx-2 cursor-pointer whitespace-nowrap rounded px-2 py-[5px] text-left text-[13px] hover:bg-[#f2f5f7] dark:hover:bg-[#1c1c1e] ${
-                      value === employee.uid ? 'text-[#d9941f]' : 'text-[#262933] dark:text-[#e0e0e5]'
-                    }`}
                   >
                     {employee.name}
-                  </button>
+                  </Button>
                 ))}
               </Fragment>
             ))}
           </div>
         ))}
       </div>
-    </div>,
-    document.body,
+    </Popover>
   )
 }
 
 export function EmployeeSelector({ employees, value, onChange }: EmployeeSelectorProps) {
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const { ref, anchor, open, close } = usePopoverAnchor<HTMLButtonElement>()
   const selectedName =
     value === ALL_EMPLOYEES_VALUE ? 'Все сотрудники' : employees.find((e) => e.uid === value)?.name ?? 'Все сотрудники'
 
   return (
     <>
       <button
-        ref={triggerRef}
+        ref={ref}
         type="button"
-        onClick={() => setAnchor(triggerRef.current!.getBoundingClientRect())}
+        onClick={open}
         className="relative flex h-7 w-[200px] shrink-0 cursor-pointer items-center justify-between rounded border border-[#e0e3eb] bg-white px-[10px] py-[6px] dark:border-transparent dark:bg-[#2e303b]"
       >
         <p className="truncate text-[13px] font-semibold text-[#0f1729] dark:text-[#ebedf2]">{selectedName}</p>
         <img src={chevronDownIcon} alt="" className="h-[5px] w-[10px] shrink-0" />
       </button>
       {anchor && (
-        <EmployeeDropdownPanel
-          employees={employees}
-          value={value}
-          anchorRect={anchor}
-          onChange={onChange}
-          onClose={() => setAnchor(null)}
-        />
+        <EmployeeDropdownPanel employees={employees} value={value} anchorRect={anchor} onChange={onChange} onClose={close} />
       )}
     </>
   )

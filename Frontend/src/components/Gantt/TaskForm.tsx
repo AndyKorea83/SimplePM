@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { Button } from '../ui/Button'
+import { Modal } from '../ui/Modal'
 import { DependenciesField } from './DependenciesField'
-import { Field, inputClass } from './FormField'
+import { Checkbox, Field, inputClass } from '../ui/Input'
 
 export type TaskFormValues = {
   name: string
@@ -100,11 +102,8 @@ export function TaskForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-[var(--surface)] p-6 shadow-xl"
-      >
+    <Modal>
+      <form onSubmit={handleSubmit} className="contents">
         <h2 className="text-[16px] font-bold text-[var(--text-primary)]">
           {mode === 'create' ? 'Новая задача' : 'Редактирование задачи'}
         </h2>
@@ -168,26 +167,22 @@ export function TaskForm({
           />
         </Field>
 
-        <label className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-          <input
-            type="checkbox"
-            checked={values.isBlocked}
-            onChange={(e) => setValues((prev) => ({ ...prev, isBlocked: e.target.checked }))}
-          />
-          Заблокирована
-        </label>
+        <Checkbox
+          label="Заблокирована"
+          checked={values.isBlocked}
+          onChange={(checked) => setValues((prev) => ({ ...prev, isBlocked: checked }))}
+        />
 
         <Field label="Исполнители">
           <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
             {resourceOptions.map((resource) => (
-              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
-                <input
-                  type="checkbox"
-                  checked={values.assigneeResourceUids.includes(resource.uid)}
-                  onChange={() => toggleAssignee(resource.uid)}
-                />
-                {resource.name}
-              </label>
+              <Checkbox
+                key={resource.uid}
+                label={resource.name}
+                checked={values.assigneeResourceUids.includes(resource.uid)}
+                onChange={() => toggleAssignee(resource.uid)}
+                labelClassName="text-[var(--text-primary)]"
+              />
             ))}
           </div>
         </Field>
@@ -204,36 +199,22 @@ export function TaskForm({
 
         <div className="flex items-center justify-between gap-2 pt-2">
           {mode === 'edit' && onDelete ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="cursor-pointer rounded-lg border border-[#d93333] px-3 py-2 text-[13px] font-medium text-[#d93333] disabled:opacity-50"
-            >
+            <Button variant="danger" onClick={handleDelete} disabled={saving}>
               Удалить
-            </button>
+            </Button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="cursor-pointer rounded-lg border border-[var(--border)] px-3 py-2 text-[13px] font-medium text-[var(--text-secondary)] disabled:opacity-50"
-            >
+            <Button variant="secondary" onClick={onClose} disabled={saving}>
               Отмена
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="cursor-pointer rounded-lg bg-[#4078d9] px-3 py-2 text-[13px] font-medium text-white disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="primary" type="submit" disabled={saving}>
               Сохранить
-            </button>
+            </Button>
           </div>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }

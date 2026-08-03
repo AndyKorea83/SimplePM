@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { Field, inputClass } from './FormField'
+import { Button } from '../ui/Button'
+import { Field, inputClass } from '../ui/Input'
+import { usePopoverAnchor } from '../ui/usePopoverAnchor'
 import { PredecessorPicker } from './PredecessorPicker'
 import { DEPENDENCY_TYPE_OPTIONS } from './types'
 
@@ -23,8 +24,8 @@ export function DependenciesField({
   onRemove,
   onChangeType,
 }: DependenciesFieldProps) {
-  const addPredecessorRef = useRef<HTMLButtonElement>(null)
-  const [predecessorAnchor, setPredecessorAnchor] = useState<DOMRect | null>(null)
+  const { ref: addPredecessorRef, anchor: predecessorAnchor, open: openPredecessorPicker, close: closePredecessorPicker } =
+    usePopoverAnchor<HTMLButtonElement>()
 
   const availablePredecessors = predecessorOptions.filter(
     (option) => !dependencies.some((d) => d.predecessorUid === option.uid),
@@ -50,30 +51,30 @@ export function DependenciesField({
                 </option>
               ))}
             </select>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              className="px-2 py-1 text-[13px] text-[var(--text-secondary)]"
               onClick={() => onRemove(dep.predecessorUid)}
-              className="cursor-pointer rounded px-2 py-1 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--border)]"
             >
               ×
-            </button>
+            </Button>
           </div>
         ))}
-        <button
+        <Button
           ref={addPredecessorRef}
-          type="button"
-          onClick={() => setPredecessorAnchor(addPredecessorRef.current!.getBoundingClientRect())}
-          className="-mx-2 self-start rounded px-2 py-1 text-left text-[13px] text-[#4078d9] hover:bg-[var(--border)]"
+          variant="ghost"
+          className="-mx-2 self-start px-2 py-1 text-left text-[13px] text-[#4078d9]"
+          onClick={openPredecessorPicker}
         >
           + Добавить предшественника
-        </button>
+        </Button>
       </div>
       {predecessorAnchor && (
         <PredecessorPicker
           options={availablePredecessors}
           anchorRect={predecessorAnchor}
           onSelect={onAdd}
-          onClose={() => setPredecessorAnchor(null)}
+          onClose={closePredecessorPicker}
         />
       )}
     </Field>

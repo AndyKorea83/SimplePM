@@ -1,3 +1,4 @@
+import { Avatar } from '../ui/Badge'
 import { StatusSquare } from './GanttRow'
 import { STATUS_LABELS, type TaskStatus } from './status'
 
@@ -57,21 +58,14 @@ export function BottomStatusBar({
         <p className="text-[var(--text-secondary)]">Команда проекта:</p>
         <div className="flex items-center">
           {visibleInitials.map((initials, index) => (
-            <div
-              key={index}
-              className="flex size-5 items-center justify-center rounded-[5px] border-2 border-white bg-[#d89425] text-[9px] font-medium text-white dark:border-[#111111]"
-              style={{ marginLeft: index === 0 ? 0 : -6 }}
-            >
+            <Avatar key={index} color="#d89425" style={{ marginLeft: index === 0 ? 0 : -6 }}>
               {initials}
-            </div>
+            </Avatar>
           ))}
           {overflowCount > 0 && (
-            <div
-              className="flex size-5 items-center justify-center rounded-[5px] border-2 border-white bg-[var(--border)] text-[9px] font-medium text-[var(--text-secondary)] dark:border-[#111111]"
-              style={{ marginLeft: -6 }}
-            >
+            <Avatar color="var(--border)" textClassName="text-[var(--text-secondary)]" style={{ marginLeft: -6 }}>
               +{overflowCount}
-            </div>
+            </Avatar>
           )}
         </div>
       </div>

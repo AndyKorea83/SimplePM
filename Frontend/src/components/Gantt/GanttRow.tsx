@@ -1,5 +1,6 @@
-import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
+import { usePopoverAnchor } from '../ui/usePopoverAnchor'
 import { DatePickerPopover } from './DatePickerPopover'
 import { GanttBar } from './GanttBar'
 import { DENSITY_METRICS } from './densityMetrics'
@@ -55,25 +56,22 @@ function EditableDateCell({
   onChange: (isoDate: string) => void
   className: string
 }) {
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const { ref, anchor, open, close } = usePopoverAnchor<HTMLButtonElement>()
 
   return (
     <>
       <button
-        ref={buttonRef}
+        ref={ref}
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          setAnchor(buttonRef.current!.getBoundingClientRect())
+          open()
         }}
         className={className}
       >
         {formatShortDate(value)}
       </button>
-      {anchor && (
-        <DatePickerPopover value={value} anchorRect={anchor} onChange={onChange} onClose={() => setAnchor(null)} />
-      )}
+      {anchor && <DatePickerPopover value={value} anchorRect={anchor} onChange={onChange} onClose={close} />}
     </>
   )
 }

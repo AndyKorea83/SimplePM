@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { PageShell } from '../ui/PageShell'
 import { SectionPlaceholder } from '../SectionPlaceholder/SectionPlaceholder'
 
 export type SectionTab = { label: string; path: string }
@@ -44,13 +45,13 @@ export function TabbedSectionPage({ tabs }: { tabs: SectionTab[] }) {
   const location = useLocation()
   const activeTab = tabs.find((tab) => tab.path === location.pathname)
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+    <PageShell>
       <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
         <SectionTabs tabs={tabs} />
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         <SectionPlaceholder title={activeTab?.label ?? ''} />
       </div>
-    </div>
+    </PageShell>
   )
 }

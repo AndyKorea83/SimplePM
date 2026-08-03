@@ -3,6 +3,7 @@ import toggleTrackIcon from '../../assets/icons/toggle-track.svg'
 import toggleKnobIcon from '../../assets/icons/toggle-knob.svg'
 import { useTheme } from '../../theme/ThemeContext'
 import { NAV_ROUTES } from '../../navigation'
+import { PageShell } from '../ui/PageShell'
 import { SectionTabs } from '../SectionTabs/SectionTabs'
 import { SectionPlaceholder } from '../SectionPlaceholder/SectionPlaceholder'
 
@@ -51,11 +52,11 @@ export function TimeSectionHeader() {
 // (переключатель темы на месте), чтобы переход между вкладками не дёргал вёрстку.
 export function TimeGroupPlaceholderPage({ title }: { title: string }) {
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+    <PageShell>
       <TimeSectionHeader />
       <div className="min-h-0 flex-1 overflow-auto">
         <SectionPlaceholder title={title} />
       </div>
-    </div>
+    </PageShell>
   )
 }
