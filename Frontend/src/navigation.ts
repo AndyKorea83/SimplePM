@@ -26,7 +26,19 @@ export const NAV_ROUTES: NavRoute[] = [
       { key: 'labor-costs', label: 'Трудозатраты', path: '/time/labor-costs' },
     ],
   },
-  { key: 'gantt', label: 'Гантт', path: '/gantt' },
+  {
+    key: 'gantt',
+    label: 'Гантт',
+    // Порядок значим: сайдбар и корневой redirect ведут на children[0]
+    // (см. Sidebar.tsx: NavItem/isRouteActive) — «Проекты» первой оставляет
+    // диаграмму на месте core-фичи в пункте меню, но стартовой вкладкой
+    // становится ещё не реализованный раздел (осознанный выбор пользователя).
+    children: [
+      { key: 'projects', label: 'Проекты', path: '/gantt/projects' },
+      { key: 'diagrams', label: 'Диаграммы', path: '/gantt' },
+      { key: 'executors', label: 'Исполнители', path: '/gantt/executors' },
+    ],
+  },
   {
     key: 'tasks',
     label: 'Задачи',

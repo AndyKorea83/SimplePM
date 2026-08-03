@@ -19,6 +19,13 @@ function pageForTimeChild(childKey: string, label: string) {
   }
 }
 
+// У вкладки "Диаграммы" — реальная страница (сама рисует вкладки над своей
+// шапкой, см. GanttPage), у "Проектов"/"Исполнителей" данных пока нет —
+// заглушка через TabbedSectionPage, как у Задач/Команды/QA.
+function pageForGanttChild(childKey: string) {
+  return childKey === 'diagrams' ? <GanttPage /> : undefined
+}
+
 // У «Время» под двумя вкладками (Календарь, Трудозатраты) — реальные страницы,
 // у третьей — общая шапка через TimeGroupPlaceholderPage. У остальных групп
 // (Задачи/Команда/QA) страниц пока нет — все их вкладки идут через заглушку
@@ -29,18 +36,18 @@ function routesForGroup(route: NavRoute) {
       <Route key={child.key} path={child.path} element={pageForTimeChild(child.key, child.label)} />
     ))
   }
+  if (route.key === 'gantt') {
+    return route.children!.map((child) => (
+      <Route
+        key={child.key}
+        path={child.path}
+        element={pageForGanttChild(child.key) ?? <TabbedSectionPage tabs={route.children!} />}
+      />
+    ))
+  }
   return route.children!.map((child) => (
     <Route key={child.key} path={child.path} element={<TabbedSectionPage tabs={route.children!} />} />
   ))
-}
-
-function pageForLeaf(routeKey: string, label: string) {
-  switch (routeKey) {
-    case 'gantt':
-      return <GanttPage />
-    default:
-      return <SectionPlaceholder title={label} />
-  }
 }
 
 function App() {
@@ -49,11 +56,11 @@ function App() {
       <Sidebar />
       <main className="flex-1 h-screen overflow-auto bg-[var(--surface)]">
         <Routes>
-          <Route path="/" element={<Navigate to="/gantt" replace />} />
+          <Route path="/" element={<Navigate to="/gantt/projects" replace />} />
           {NAV_ROUTES.flatMap((route) =>
             route.children
               ? routesForGroup(route)
-              : [<Route key={route.key} path={route.path} element={pageForLeaf(route.key, route.label)} />],
+              : [<Route key={route.key} path={route.path} element={<SectionPlaceholder title={route.label} />} />],
           )}
         </Routes>
       </main>
