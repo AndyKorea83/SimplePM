@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button } from '../ui/Button'
+import { fieldSurfaceClass, Select } from '../ui/Input'
 import calendarIcon from '../../assets/icons/calendar.svg'
 import settingsIcon from '../../assets/icons/settings.svg'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
@@ -103,18 +104,14 @@ function AssigneeFilter({
   onChange: (uid: number | null) => void
 }) {
   return (
-    <select
-      value={value ?? 'all'}
-      onChange={(event) => onChange(event.target.value === 'all' ? null : Number(event.target.value))}
-      className="cursor-pointer rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-medium text-[var(--text-primary)] dark:bg-[#1c1c1e]"
-    >
+    <Select value={value ?? 'all'} onChange={(event) => onChange(event.target.value === 'all' ? null : Number(event.target.value))}>
       <option value="all">Все исполнители</option>
       {teamMembers.map((member) => (
         <option key={member.uid} value={member.uid}>
           {member.name}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 
@@ -150,14 +147,14 @@ export function GanttHeader({
         <img src={chevronDownIcon} alt="" className="size-4" />
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-3 py-2 dark:bg-[#1c1c1e]">
+        <div className={`flex items-center gap-2 ${fieldSurfaceClass}`}>
           <img src={calendarIcon} alt="" style={{ width: 14, height: 14 }} />
           <p className="text-[13px] font-medium text-[var(--text-primary)]">{dateRangeLabel}</p>
         </div>
         <AssigneeFilter teamMembers={teamMembers} value={assigneeFilter} onChange={onAssigneeFilterChange} />
         <ScaleSelector scale={scale} onChange={onScaleChange} />
         <DensitySwitcher density={density} onChange={onDensityChange} />
-        <div className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-white px-3 py-2 dark:bg-[#1c1c1e]">
+        <div className={`flex items-center gap-[6px] ${fieldSurfaceClass}`}>
           <img src={settingsIcon} alt="" style={{ width: 14, height: 14 }} />
           <p className="text-[13px] font-medium text-[var(--text-secondary)]">Настройки</p>
         </div>
