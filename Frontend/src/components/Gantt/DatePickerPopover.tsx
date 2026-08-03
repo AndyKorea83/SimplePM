@@ -46,7 +46,7 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
       <div className="mb-2 flex items-center justify-between">
         <Button
           variant="ghost"
-          className="px-1.5 py-0.5 text-[13px]"
+          className="px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)]"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
         >
           ‹
@@ -56,7 +56,7 @@ export function DatePickerPopover({ value, anchorRect, onChange, onClose }: Date
         </p>
         <Button
           variant="ghost"
-          className="px-1.5 py-0.5 text-[13px]"
+          className="px-1.5 py-0.5 text-[13px] text-[var(--text-secondary)]"
           onClick={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
         >
           ›
