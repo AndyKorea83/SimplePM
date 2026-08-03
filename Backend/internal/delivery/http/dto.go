@@ -12,13 +12,48 @@ import (
 // presentation choices (e.g. hours instead of time.Duration).
 
 type projectDTO struct {
+	ID          int             `json:"id"`
 	Name        string          `json:"name"`
 	Title       string          `json:"title"`
+	Description string          `json:"description,omitempty"`
+	CreatedBy   string          `json:"createdBy"`
+	CreatedAt   string          `json:"createdAt"`
 	StartDate   string          `json:"startDate"`
 	FinishDate  string          `json:"finishDate"`
 	Tasks       []taskDTO       `json:"tasks"`
 	Resources   []resourceDTO   `json:"resources"`
 	Assignments []assignmentDTO `json:"assignments"`
+}
+
+// projectSummaryDTO is the "Проекты" list's per-row view (usecase.ProjectSummary)
+// — no task list, since the list page only needs the derived rollup fields.
+type projectSummaryDTO struct {
+	ID             int    `json:"id"`
+	Name           string `json:"name"`
+	Title          string `json:"title"`
+	Description    string `json:"description,omitempty"`
+	CreatedBy      string `json:"createdBy"`
+	CreatedAt      string `json:"createdAt"`
+	ComputedFinish string `json:"computedFinish"`
+	TaskTotal      int    `json:"taskTotal"`
+	TaskDone       int    `json:"taskDone"`
+	BehindSchedule bool   `json:"behindSchedule"`
+}
+
+func newProjectSummaryDTO(s usecase.ProjectSummary) projectSummaryDTO {
+	p := s.Project
+	return projectSummaryDTO{
+		ID:             p.ID,
+		Name:           p.Name,
+		Title:          p.Title,
+		Description:    p.Description,
+		CreatedBy:      p.CreatedBy,
+		CreatedAt:      formatTime(p.CreatedAt),
+		ComputedFinish: formatTime(s.ComputedFinish),
+		TaskTotal:      s.TaskTotal,
+		TaskDone:       s.TaskDone,
+		BehindSchedule: s.BehindSchedule,
+	}
 }
 
 type taskDTO struct {
@@ -88,8 +123,12 @@ func newProjectDTO(p *entity.Project) projectDTO {
 	}
 
 	return projectDTO{
+		ID:          p.ID,
 		Name:        p.Name,
 		Title:       p.Title,
+		Description: p.Description,
+		CreatedBy:   p.CreatedBy,
+		CreatedAt:   formatTime(p.CreatedAt),
 		StartDate:   formatTime(p.StartDate),
 		FinishDate:  formatTime(p.FinishDate),
 		Tasks:       tasks,

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { NAV_ROUTES } from '../../navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { PageShell } from '../ui/PageShell'
 import { SectionTabs } from '../SectionTabs/SectionTabs'
 import { createTask, deleteTask, fetchProject, updateTask } from './api'
 import { buildTaskTree, filterTaskTree, flattenVisible } from './buildTaskTree'
 import { formatDateRange } from './dateGrid'
+import { GANTT_TABS } from './ganttTabs'
+import { LAST_PROJECT_STORAGE_KEY } from './GanttDiagramsRedirect'
 import { BottomStatusBar } from './BottomStatusBar'
 import { GanttHeader } from './GanttHeader'
 import { GanttWorkspace } from './GanttWorkspace'
@@ -28,10 +30,6 @@ function isGanttDensity(value: string | null): value is GanttDensity {
   return value === 'default' || value === 'compact' || value === 'dense'
 }
 
-// Единый источник вкладок раздела (Проекты/Диаграммы/Исполнители) — те же
-// данные, что сайдбар использует для пункта "Гантт".
-const GANTT_TABS = NAV_ROUTES.find((route) => route.key === 'gantt')!.children!
-
 const EMPTY_STATUS_COUNTS: Record<TaskStatus, number> = {
   complete: 0,
   inWork: 0,
@@ -41,6 +39,7 @@ const EMPTY_STATUS_COUNTS: Record<TaskStatus, number> = {
 }
 
 export function GanttPage() {
+  const projectId = Number(useParams<'projectId'>().projectId)
   const [project, setProject] = useState<ProjectDTO | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [scale, setScaleState] = useState<GanttScale>(() => {
@@ -65,11 +64,22 @@ export function GanttPage() {
     setDensityState(next)
   }
 
-  const refetch = () => fetchProject().then(setProject).catch((err: Error) => setError(err.message))
+  const refetch = useCallback(
+    () =>
+      fetchProject(projectId)
+        .then((p) => {
+          setProject(p)
+          localStorage.setItem(LAST_PROJECT_STORAGE_KEY, String(projectId))
+        })
+        .catch((err: Error) => setError(err.message)),
+    [projectId],
+  )
 
   useEffect(() => {
+    setProject(null)
+    setError(null)
     refetch()
-  }, [])
+  }, [projectId, refetch])
 
   const today = useMemo(() => new Date(), [])
 
@@ -259,7 +269,7 @@ export function GanttPage() {
     const finish = new Date(values.finish).toISOString()
 
     if (formState?.mode === 'create') {
-      await createTask({
+      await createTask(projectId, {
         name: values.name,
         parentUid: values.parentUid ?? undefined,
         start,
@@ -276,7 +286,7 @@ export function GanttPage() {
       // TaskForm теперь используется только для не-групповых задач (группы
       // редактируются через GroupForm) — percentComplete всегда безопасно
       // отправлять, серверная валидация групп сюда не попадает.
-      await updateTask(formState.task.uid, {
+      await updateTask(projectId, formState.task.uid, {
         name: values.name,
         start,
         finish,
@@ -294,7 +304,7 @@ export function GanttPage() {
   // от подзадач, % и "заблокировано" не редактируются (см. GroupForm).
   const handleGroupFormSubmit = async (values: GroupFormValues) => {
     if (!formState?.task) return
-    await updateTask(formState.task.uid, {
+    await updateTask(projectId, formState.task.uid, {
       name: values.name,
       dependencies: values.dependencies,
     })
@@ -304,14 +314,14 @@ export function GanttPage() {
 
   const handleDeleteTask = async () => {
     if (formState?.mode !== 'edit' || !formState.task) return
-    await deleteTask(formState.task.uid)
+    await deleteTask(projectId, formState.task.uid)
     await refetch()
     setFormState(null)
   }
 
   const handleStartChange = async (uid: number, isoDate: string) => {
     try {
-      await updateTask(uid, { start: new Date(isoDate).toISOString() })
+      await updateTask(projectId, uid, { start: new Date(isoDate).toISOString() })
       await refetch()
     } catch (err) {
       window.alert(err instanceof Error ? err.message : String(err))
@@ -320,7 +330,7 @@ export function GanttPage() {
 
   const handleFinishChange = async (uid: number, isoDate: string) => {
     try {
-      await updateTask(uid, { finish: new Date(isoDate).toISOString() })
+      await updateTask(projectId, uid, { finish: new Date(isoDate).toISOString() })
       await refetch()
     } catch (err) {
       window.alert(err instanceof Error ? err.message : String(err))
@@ -337,7 +347,7 @@ export function GanttPage() {
       (d) => !(d.predecessorUid === predecessorUid && d.type === type),
     )
     try {
-      await updateTask(successorUid, { dependencies: nextDependencies })
+      await updateTask(projectId, successorUid, { dependencies: nextDependencies })
       await refetch()
     } catch (err) {
       window.alert(err instanceof Error ? err.message : String(err))
@@ -355,7 +365,7 @@ export function GanttPage() {
     const existing = successor.dependencies ?? []
     if (existing.some((d) => d.predecessorUid === predecessorUid)) return
     try {
-      await updateTask(successorUid, { dependencies: [...existing, { predecessorUid, type: 1 }] })
+      await updateTask(projectId, successorUid, { dependencies: [...existing, { predecessorUid, type: 1 }] })
       await refetch()
     } catch (err) {
       window.alert(err instanceof Error ? err.message : String(err))

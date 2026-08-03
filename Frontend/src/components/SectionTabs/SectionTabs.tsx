@@ -13,7 +13,10 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
   return (
     <div className="flex items-start gap-6">
       {tabs.map((tab) => {
-        const isActive = location.pathname === tab.path
+        // Точное совпадение ИЛИ вложенный путь — нужно вкладке "Диаграммы"
+        // (см. Gantt/GanttPage.tsx), у которой реальный URL содержит id
+        // проекта (`/gantt/diagrams/42`), а не сам путь таба.
+        const isActive = location.pathname === tab.path || location.pathname.startsWith(tab.path + '/')
         return (
           <Link key={tab.path} to={tab.path} className="flex flex-col items-start gap-2 pb-[10px]">
             {/* Подсветка — на отдельном span вокруг текста (симметричный py),

@@ -3,6 +3,8 @@ import { Sidebar } from './components/Sidebar/Sidebar'
 import { SectionPlaceholder } from './components/SectionPlaceholder/SectionPlaceholder'
 import { TabbedSectionPage } from './components/SectionTabs/SectionTabs'
 import { GanttPage } from './components/Gantt/GanttPage'
+import { GanttDiagramsRedirect } from './components/Gantt/GanttDiagramsRedirect'
+import { ProjectsPage } from './components/Projects/ProjectsPage'
 import { CalendarPage } from './components/Calendar/CalendarPage'
 import { LaborCostsPage } from './components/Calendar/LaborCostsPage'
 import { TimeGroupPlaceholderPage } from './components/Calendar/TimeSectionHeader'
@@ -19,11 +21,20 @@ function pageForTimeChild(childKey: string, label: string) {
   }
 }
 
-// У вкладки "Диаграммы" — реальная страница (сама рисует вкладки над своей
-// шапкой, см. GanttPage), у "Проектов"/"Исполнителей" данных пока нет —
-// заглушка через TabbedSectionPage, как у Задач/Команды/QA.
+// У вкладок "Проекты" и "Диаграммы" — реальные страницы (обе сами рисуют
+// вкладки над своей шапкой, см. ProjectsPage/GanttPage); "Диаграммы" без id
+// в пути — точка входа, резолвящая на "/gantt/diagrams/:projectId" (см.
+// GanttDiagramsRedirect). У "Исполнителей" данных пока нет — заглушка через
+// TabbedSectionPage, как у Задач/Команды/QA.
 function pageForGanttChild(childKey: string) {
-  return childKey === 'diagrams' ? <GanttPage /> : undefined
+  switch (childKey) {
+    case 'projects':
+      return <ProjectsPage />
+    case 'diagrams':
+      return <GanttDiagramsRedirect />
+    default:
+      return undefined
+  }
 }
 
 // У «Время» под двумя вкладками (Календарь, Трудозатраты) — реальные страницы,
@@ -37,13 +48,16 @@ function routesForGroup(route: NavRoute) {
     ))
   }
   if (route.key === 'gantt') {
-    return route.children!.map((child) => (
-      <Route
-        key={child.key}
-        path={child.path}
-        element={pageForGanttChild(child.key) ?? <TabbedSectionPage tabs={route.children!} />}
-      />
-    ))
+    return [
+      ...route.children!.map((child) => (
+        <Route
+          key={child.key}
+          path={child.path}
+          element={pageForGanttChild(child.key) ?? <TabbedSectionPage tabs={route.children!} />}
+        />
+      )),
+      <Route key="gantt-diagram-detail" path="/gantt/diagrams/:projectId" element={<GanttPage />} />,
+    ]
   }
   return route.children!.map((child) => (
     <Route key={child.key} path={child.path} element={<TabbedSectionPage tabs={route.children!} />} />

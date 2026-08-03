@@ -31,11 +31,20 @@ func NewRouter(projectService usecase.ProjectService, timesheetService usecase.T
 	taskHandler := NewTaskHandler(projectService)
 	timesheetHandler := NewTimesheetHandler(timesheetService)
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/project", projectHandler.GetProject)
-		r.Route("/tasks", func(r chi.Router) {
-			r.Post("/", taskHandler.CreateTask)
-			r.Patch("/{uid}", taskHandler.UpdateTask)
-			r.Delete("/{uid}", taskHandler.DeleteTask)
+		r.Route("/projects", func(r chi.Router) {
+			r.Get("/", projectHandler.ListProjects)
+			r.Post("/", projectHandler.CreateProject)
+			r.Post("/import", projectHandler.ImportProject)
+			r.Route("/{projectId}", func(r chi.Router) {
+				r.Get("/", projectHandler.GetProject)
+				r.Patch("/", projectHandler.UpdateProject)
+				r.Get("/export", projectHandler.ExportProject)
+				r.Route("/tasks", func(r chi.Router) {
+					r.Post("/", taskHandler.CreateTask)
+					r.Patch("/{uid}", taskHandler.UpdateTask)
+					r.Delete("/{uid}", taskHandler.DeleteTask)
+				})
+			})
 		})
 		r.Get("/timesheet", timesheetHandler.GetMonth)
 		r.Get("/timesheet/export", timesheetHandler.ExportLaborCosts)

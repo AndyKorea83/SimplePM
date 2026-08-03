@@ -31,12 +31,12 @@ type UpdateTaskInput struct {
 	Dependencies         *[]entity.Dependency
 }
 
-// TaskRepository mutates project tasks. Only an in-memory-backed
-// ProjectRepository (see the memstore package) implements this — the MSPDI
-// file repository is read-only and used just for the initial load at
+// TaskRepository mutates tasks within a given project. Only an in-memory-
+// backed ProjectRepository (see the memstore package) implements this — the
+// MSPDI file repository is read-only and used just for the initial load at
 // startup, per the roadmap's stage 1/PoC scope.
 type TaskRepository interface {
-	CreateTask(ctx context.Context, input CreateTaskInput) (entity.Task, error)
-	UpdateTask(ctx context.Context, uid int, input UpdateTaskInput) (entity.Task, error)
-	DeleteTask(ctx context.Context, uid int) error
+	CreateTask(ctx context.Context, projectID int, input CreateTaskInput) (entity.Task, error)
+	UpdateTask(ctx context.Context, projectID int, uid int, input UpdateTaskInput) (entity.Task, error)
+	DeleteTask(ctx context.Context, projectID int, uid int) error
 }
