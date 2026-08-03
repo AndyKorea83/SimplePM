@@ -10,7 +10,12 @@ import "encoding/xml"
 // depends on this wire format.
 
 type xmlProject struct {
-	XMLName     xml.Name       `xml:"Project"`
+	XMLName xml.Name `xml:"Project"`
+	// XMLNS is only populated by Write (see mspdiNamespace in writer.go) —
+	// Go's encoding/xml doesn't emit xmlns from XMLName.Space alone, it needs
+	// an explicit "xmlns,attr" field. Parse ignores it either way (matching
+	// is by local name), so leaving it empty on decode is harmless.
+	XMLNS       string         `xml:"xmlns,attr,omitempty"`
 	Name        string         `xml:"Name"`
 	Title       string         `xml:"Title"`
 	StartDate   string         `xml:"StartDate"`
@@ -68,10 +73,17 @@ type xmlAssignment struct {
 	Work        string  `xml:"Work"`
 }
 
-// intBool decodes MSPDI's "0"/"1" boolean-as-int fields.
+// intBool decodes/encodes MSPDI's "0"/"1" boolean-as-int fields.
 type intBool bool
 
 func (b *intBool) UnmarshalText(text []byte) error {
 	*b = len(text) > 0 && text[0] == '1'
 	return nil
+}
+
+func (b intBool) MarshalText() ([]byte, error) {
+	if b {
+		return []byte("1"), nil
+	}
+	return []byte("0"), nil
 }
