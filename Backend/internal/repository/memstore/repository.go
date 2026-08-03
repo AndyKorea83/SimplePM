@@ -1,15 +1,18 @@
-// Package memstore holds a Project in memory and supports mutating tasks
-// on it. It is the stage 1/PoC stand-in for real persistence: the process
+// Package memstore holds projects in memory and supports mutating their
+// tasks. It is the stage 1/PoC stand-in for real persistence: the process
 // parses the MSPDI file once at startup (see mspdi.FileRepository) and
-// hands the result to NewRepository, after which every read and write goes
-// through the in-memory copy here. Changes live only for the process's
-// lifetime — restarting the server reverts to the XML file's contents.
+// hands the result to NewRepository as the first project, after which every
+// read and write goes through the in-memory copies here — including
+// projects created or imported later through the "Проекты" page. Changes
+// live only for the process's lifetime — restarting the server reverts to
+// the seed XML file's contents (newly created/imported projects are lost).
 package memstore
 
 import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"sync"
 	"time"
 
@@ -17,28 +20,55 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository"
 )
 
-type Repository struct {
-	mu                sync.RWMutex
+// placeholderCreatedBy stands in for "the user who created this project"
+// until the app has real accounts/auth (stage 2) — every project created or
+// imported through this store is stamped with it, not something the create/
+// import forms ask the user to type.
+const placeholderCreatedBy = "Текущий пользователь"
+
+type projectEntry struct {
 	project           entity.Project
 	nextTaskUID       int
 	nextAssignmentUID int
 }
 
+type Repository struct {
+	mu            sync.RWMutex
+	projects      map[int]*projectEntry
+	nextProjectID int
+}
+
+// NewRepository seeds the store with initial as project ID 1 (the MSPDI
+// file loaded at startup — see cmd/server/main.go). Further projects are
+// added via CreateProject/ImportProject.
 func NewRepository(initial *entity.Project) *Repository {
+	r := &Repository{
+		projects:      make(map[int]*projectEntry),
+		nextProjectID: 2,
+	}
+	seed := *initial
+	seed.ID = 1
+	seed.CreatedBy = placeholderCreatedBy
+	seed.CreatedAt = time.Now()
+	r.projects[1] = newProjectEntry(seed)
+	return r
+}
+
+func newProjectEntry(project entity.Project) *projectEntry {
 	maxTaskUID := 0
-	for _, t := range initial.Tasks {
+	for _, t := range project.Tasks {
 		if t.UID > maxTaskUID {
 			maxTaskUID = t.UID
 		}
 	}
 	maxAssignmentUID := 0
-	for _, a := range initial.Assignments {
+	for _, a := range project.Assignments {
 		if a.UID > maxAssignmentUID {
 			maxAssignmentUID = a.UID
 		}
 	}
-	r := &Repository{
-		project:           *initial,
+	e := &projectEntry{
+		project:           project,
 		nextTaskUID:       maxTaskUID + 1,
 		nextAssignmentUID: maxAssignmentUID + 1,
 	}
@@ -46,8 +76,8 @@ func NewRepository(initial *entity.Project) *Repository {
 	// necessarily the same number our formula would produce — recompute once
 	// up front so summary percentages are correct from the first read, not
 	// just after the first mutation anywhere in the tree.
-	r.recomputeSummaryProgress()
-	return r
+	e.recomputeSummaryProgress()
+	return e
 }
 
 var (
@@ -55,26 +85,116 @@ var (
 	_ repository.TaskRepository    = (*Repository)(nil)
 )
 
-func (r *Repository) GetProject(_ context.Context) (*entity.Project, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return cloneProject(&r.project), nil
+func (r *Repository) entry(projectID int) (*projectEntry, error) {
+	e, ok := r.projects[projectID]
+	if !ok {
+		return nil, fmt.Errorf("project %d not found", projectID)
+	}
+	return e, nil
 }
 
-func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskInput) (entity.Task, error) {
+func (r *Repository) GetProject(_ context.Context, projectID int) (*entity.Project, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	e, err := r.entry(projectID)
+	if err != nil {
+		return nil, err
+	}
+	return cloneProject(&e.project), nil
+}
+
+func (r *Repository) ListProjects(_ context.Context) ([]entity.Project, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	projects := make([]entity.Project, 0, len(r.projects))
+	for _, e := range r.projects {
+		projects = append(projects, *cloneProject(&e.project))
+	}
+	// Map iteration order is randomized in Go — without this, the "Проекты"
+	// list would reshuffle on every fetch.
+	sort.Slice(projects, func(i, j int) bool { return projects[i].ID < projects[j].ID })
+	return projects, nil
+}
+
+func (r *Repository) CreateProject(_ context.Context, input repository.CreateProjectInput) (entity.Project, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	today := truncateToDate(time.Now())
+	project := entity.Project{
+		ID:          r.nextProjectID,
+		Name:        input.Name,
+		Title:       input.Name,
+		Description: input.Description,
+		CreatedBy:   placeholderCreatedBy,
+		CreatedAt:   time.Now(),
+		// A brand-new project has no tasks yet — Start/FinishDate still need
+		// a valid (non-zero) value, since the frontend's Gantt grid builds
+		// its date range from these two fields when the task list is empty.
+		StartDate:  today,
+		FinishDate: today,
+	}
+	r.projects[r.nextProjectID] = newProjectEntry(project)
+	r.nextProjectID++
+
+	return project, nil
+}
+
+func (r *Repository) UpdateProject(_ context.Context, projectID int, input repository.UpdateProjectInput) (entity.Project, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	e, err := r.entry(projectID)
+	if err != nil {
+		return entity.Project{}, err
+	}
+	if input.Name != nil {
+		e.project.Name = *input.Name
+		e.project.Title = *input.Name
+	}
+	if input.Description != nil {
+		e.project.Description = *input.Description
+	}
+	return e.project, nil
+}
+
+func (r *Repository) ImportProject(_ context.Context, input repository.ImportProjectInput) (entity.Project, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	project := *input.Imported
+	project.ID = r.nextProjectID
+	project.Name = input.Name
+	project.Title = input.Name
+	project.Description = input.Description
+	project.CreatedBy = placeholderCreatedBy
+	project.CreatedAt = time.Now()
+
+	r.projects[r.nextProjectID] = newProjectEntry(project)
+	r.nextProjectID++
+
+	return project, nil
+}
+
+func (r *Repository) CreateTask(_ context.Context, projectID int, input repository.CreateTaskInput) (entity.Task, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	e, err := r.entry(projectID)
+	if err != nil {
+		return entity.Task{}, err
+	}
 
 	if err := validateRange(input.Start, input.Finish); err != nil {
 		return entity.Task{}, err
 	}
-	if err := r.validateDependencies(r.nextTaskUID, input.Dependencies); err != nil {
+	if err := e.validateDependencies(e.nextTaskUID, input.Dependencies); err != nil {
 		return entity.Task{}, err
 	}
 
 	task := entity.Task{
-		UID:             r.nextTaskUID,
-		ID:              r.nextTaskUID,
+		UID:             e.nextTaskUID,
+		ID:              e.nextTaskUID,
 		Name:            input.Name,
 		ParentUID:       input.ParentUID,
 		OutlineLevel:    1,
@@ -88,31 +208,36 @@ func (r *Repository) CreateTask(_ context.Context, input repository.CreateTaskIn
 	}
 
 	if input.ParentUID != nil {
-		parentIndex, err := r.findTaskIndex(*input.ParentUID)
+		parentIndex, err := e.findTaskIndex(*input.ParentUID)
 		if err != nil {
 			return entity.Task{}, err
 		}
-		r.project.Tasks[parentIndex].IsSummary = true
-		task.OutlineLevel = r.project.Tasks[parentIndex].OutlineLevel + 1
+		e.project.Tasks[parentIndex].IsSummary = true
+		task.OutlineLevel = e.project.Tasks[parentIndex].OutlineLevel + 1
 	}
-	r.nextTaskUID++
+	e.nextTaskUID++
 
-	r.project.Tasks = append(r.project.Tasks, task)
-	r.setAssignments(task.UID, input.AssigneeResourceUIDs)
-	r.recomputeSummaryProgress()
+	e.project.Tasks = append(e.project.Tasks, task)
+	e.setAssignments(task.UID, input.AssigneeResourceUIDs)
+	e.recomputeSummaryProgress()
 
 	return task, nil
 }
 
-func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.UpdateTaskInput) (entity.Task, error) {
+func (r *Repository) UpdateTask(_ context.Context, projectID int, uid int, input repository.UpdateTaskInput) (entity.Task, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	index, err := r.findTaskIndex(uid)
+	e, err := r.entry(projectID)
 	if err != nil {
 		return entity.Task{}, err
 	}
-	task := &r.project.Tasks[index]
+
+	index, err := e.findTaskIndex(uid)
+	if err != nil {
+		return entity.Task{}, err
+	}
+	task := &e.project.Tasks[index]
 
 	if input.PercentComplete != nil && task.IsSummary {
 		return entity.Task{}, fmt.Errorf("percent complete of a summary task is computed automatically from its children and cannot be set directly")
@@ -129,7 +254,7 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 		return entity.Task{}, err
 	}
 	if input.Dependencies != nil {
-		if err := r.validateDependencies(uid, *input.Dependencies); err != nil {
+		if err := e.validateDependencies(uid, *input.Dependencies); err != nil {
 			return entity.Task{}, err
 		}
 	}
@@ -152,30 +277,35 @@ func (r *Repository) UpdateTask(_ context.Context, uid int, input repository.Upd
 		task.IsBlocked = *input.IsBlocked
 	}
 	if input.AssigneeResourceUIDs != nil {
-		r.setAssignments(uid, *input.AssigneeResourceUIDs)
+		e.setAssignments(uid, *input.AssigneeResourceUIDs)
 	}
 	if input.Dependencies != nil {
 		task.Dependencies = append([]entity.Dependency(nil), (*input.Dependencies)...)
 	}
 
-	r.recomputeSummaryProgress()
+	e.recomputeSummaryProgress()
 
 	return *task, nil
 }
 
-func (r *Repository) DeleteTask(_ context.Context, uid int) error {
+func (r *Repository) DeleteTask(_ context.Context, projectID int, uid int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, err := r.findTaskIndex(uid); err != nil {
+	e, err := r.entry(projectID)
+	if err != nil {
 		return err
 	}
 
-	dead := r.collectDescendants(uid)
+	if _, err := e.findTaskIndex(uid); err != nil {
+		return err
+	}
+
+	dead := e.collectDescendants(uid)
 	dead[uid] = struct{}{}
 
-	remainingTasks := make([]entity.Task, 0, len(r.project.Tasks))
-	for _, t := range r.project.Tasks {
+	remainingTasks := make([]entity.Task, 0, len(e.project.Tasks))
+	for _, t := range e.project.Tasks {
 		if _, isDead := dead[t.UID]; isDead {
 			continue
 		}
@@ -187,16 +317,16 @@ func (r *Repository) DeleteTask(_ context.Context, uid int) error {
 		}
 		remainingTasks = append(remainingTasks, t)
 	}
-	r.project.Tasks = remainingTasks
+	e.project.Tasks = remainingTasks
 
-	remainingAssignments := make([]entity.Assignment, 0, len(r.project.Assignments))
-	for _, a := range r.project.Assignments {
+	remainingAssignments := make([]entity.Assignment, 0, len(e.project.Assignments))
+	for _, a := range e.project.Assignments {
 		if _, isDead := dead[a.TaskUID]; !isDead {
 			remainingAssignments = append(remainingAssignments, a)
 		}
 	}
-	r.project.Assignments = remainingAssignments
-	r.recomputeSummaryProgress()
+	e.project.Assignments = remainingAssignments
+	e.recomputeSummaryProgress()
 
 	return nil
 }
@@ -246,10 +376,10 @@ func truncateToDate(t time.Time) time.Time {
 // tasks are a pure aggregate now (see UpdateTask's guard against editing
 // PercentComplete on one directly), so this must run after every mutation
 // that could change a leaf's percent, dates, or the tree shape itself.
-func (r *Repository) recomputeSummaryProgress() {
-	childrenByParent := make(map[int][]int, len(r.project.Tasks))
-	indexByUID := make(map[int]int, len(r.project.Tasks))
-	for i, t := range r.project.Tasks {
+func (e *projectEntry) recomputeSummaryProgress() {
+	childrenByParent := make(map[int][]int, len(e.project.Tasks))
+	indexByUID := make(map[int]int, len(e.project.Tasks))
+	for i, t := range e.project.Tasks {
 		indexByUID[t.UID] = i
 		if t.ParentUID != nil {
 			childrenByParent[*t.ParentUID] = append(childrenByParent[*t.ParentUID], t.UID)
@@ -260,14 +390,14 @@ func (r *Repository) recomputeSummaryProgress() {
 		percent int
 		weight  float64
 	}
-	memo := make(map[int]rollup, len(r.project.Tasks))
+	memo := make(map[int]rollup, len(e.project.Tasks))
 
 	var compute func(uid int) rollup
 	compute = func(uid int) rollup {
 		if v, ok := memo[uid]; ok {
 			return v
 		}
-		task := &r.project.Tasks[indexByUID[uid]]
+		task := &e.project.Tasks[indexByUID[uid]]
 		children := childrenByParent[uid]
 		if len(children) == 0 {
 			weight := task.Duration.Hours()
@@ -293,7 +423,7 @@ func (r *Repository) recomputeSummaryProgress() {
 		return v
 	}
 
-	for _, t := range r.project.Tasks {
+	for _, t := range e.project.Tasks {
 		if t.IsSummary {
 			compute(t.UID)
 		}
@@ -314,7 +444,7 @@ func filterDependencies(deps []entity.Dependency, dead map[int]struct{}) []entit
 // validateDependencies rejects a dependency list before it is written onto
 // taskUID: unknown/self-referencing/duplicate predecessors, an out-of-range
 // Type (defends against arbitrary ints arriving from JSON), or a cycle.
-func (r *Repository) validateDependencies(taskUID int, deps []entity.Dependency) error {
+func (e *projectEntry) validateDependencies(taskUID int, deps []entity.Dependency) error {
 	seen := make(map[int]struct{}, len(deps))
 	for _, d := range deps {
 		if d.PredecessorUID == taskUID {
@@ -327,11 +457,11 @@ func (r *Repository) validateDependencies(taskUID int, deps []entity.Dependency)
 			return fmt.Errorf("duplicate dependency on predecessor %d", d.PredecessorUID)
 		}
 		seen[d.PredecessorUID] = struct{}{}
-		if _, err := r.findTaskIndex(d.PredecessorUID); err != nil {
+		if _, err := e.findTaskIndex(d.PredecessorUID); err != nil {
 			return fmt.Errorf("predecessor %d not found", d.PredecessorUID)
 		}
 	}
-	if r.hasDependencyCycle(taskUID, deps) {
+	if e.hasDependencyCycle(taskUID, deps) {
 		return fmt.Errorf("dependency on task %d would create a cycle", taskUID)
 	}
 	return nil
@@ -340,9 +470,9 @@ func (r *Repository) validateDependencies(taskUID int, deps []entity.Dependency)
 // hasDependencyCycle checks whether taskUID would become reachable from
 // itself if its Dependencies were replaced with proposedDeps, walking every
 // other task's *current* predecessor edges unchanged.
-func (r *Repository) hasDependencyCycle(taskUID int, proposedDeps []entity.Dependency) bool {
-	predecessorsOf := make(map[int][]int, len(r.project.Tasks))
-	for _, t := range r.project.Tasks {
+func (e *projectEntry) hasDependencyCycle(taskUID int, proposedDeps []entity.Dependency) bool {
+	predecessorsOf := make(map[int][]int, len(e.project.Tasks))
+	for _, t := range e.project.Tasks {
 		if t.UID == taskUID {
 			continue
 		}
@@ -371,8 +501,8 @@ func (r *Repository) hasDependencyCycle(taskUID int, proposedDeps []entity.Depen
 	return false
 }
 
-func (r *Repository) findTaskIndex(uid int) (int, error) {
-	for i, t := range r.project.Tasks {
+func (e *projectEntry) findTaskIndex(uid int) (int, error) {
+	for i, t := range e.project.Tasks {
 		if t.UID == uid {
 			return i, nil
 		}
@@ -382,9 +512,9 @@ func (r *Repository) findTaskIndex(uid int) (int, error) {
 
 // collectDescendants returns the UIDs of every task transitively parented
 // under uid (not including uid itself).
-func (r *Repository) collectDescendants(uid int) map[int]struct{} {
+func (e *projectEntry) collectDescendants(uid int) map[int]struct{} {
 	childrenByParent := make(map[int][]int)
-	for _, t := range r.project.Tasks {
+	for _, t := range e.project.Tasks {
 		if t.ParentUID != nil {
 			childrenByParent[*t.ParentUID] = append(childrenByParent[*t.ParentUID], t.UID)
 		}
@@ -407,23 +537,23 @@ func (r *Repository) collectDescendants(uid int) map[int]struct{} {
 
 // setAssignments replaces every assignment for taskUID with one per given
 // resource UID.
-func (r *Repository) setAssignments(taskUID int, resourceUIDs []int) {
-	filtered := make([]entity.Assignment, 0, len(r.project.Assignments))
-	for _, a := range r.project.Assignments {
+func (e *projectEntry) setAssignments(taskUID int, resourceUIDs []int) {
+	filtered := make([]entity.Assignment, 0, len(e.project.Assignments))
+	for _, a := range e.project.Assignments {
 		if a.TaskUID != taskUID {
 			filtered = append(filtered, a)
 		}
 	}
 	for _, resourceUID := range resourceUIDs {
 		filtered = append(filtered, entity.Assignment{
-			UID:         r.nextAssignmentUID,
+			UID:         e.nextAssignmentUID,
 			TaskUID:     taskUID,
 			ResourceUID: resourceUID,
 			Units:       1,
 		})
-		r.nextAssignmentUID++
+		e.nextAssignmentUID++
 	}
-	r.project.Assignments = filtered
+	e.project.Assignments = filtered
 }
 
 func cloneProject(p *entity.Project) *entity.Project {

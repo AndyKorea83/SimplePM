@@ -33,7 +33,7 @@ func TestCreateTask_TopLevel(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
 
-	task, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	task, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:   "New task",
 		Start:  time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC),
 		Finish: time.Date(2026, 7, 5, 17, 0, 0, 0, time.UTC),
@@ -51,7 +51,7 @@ func TestCreateTask_TopLevel(t *testing.T) {
 		t.Errorf("OutlineLevel = %d, want 1", task.OutlineLevel)
 	}
 
-	project, err := repo.GetProject(ctx)
+	project, err := repo.GetProject(ctx, 1)
 	if err != nil {
 		t.Fatalf("GetProject: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestCreateTask_WithParentMarksParentSummary(t *testing.T) {
 	ctx := context.Background()
 	parentUID := 1
 
-	child, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	child, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:      "Child",
 		ParentUID: &parentUID,
 		Start:     time.Date(2026, 6, 2, 8, 0, 0, 0, time.UTC),
@@ -78,7 +78,7 @@ func TestCreateTask_WithParentMarksParentSummary(t *testing.T) {
 		t.Errorf("child OutlineLevel = %d, want 2", child.OutlineLevel)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	var parent *entity.Task
 	for i := range project.Tasks {
 		if project.Tasks[i].UID == parentUID {
@@ -99,7 +99,7 @@ func TestSummaryProgress_WeightedRollupFromChildren(t *testing.T) {
 	parentUID := 1
 
 	// Child A: 1 business day (Mon 2026-06-15), 100% complete.
-	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	if _, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:            "A",
 		ParentUID:       &parentUID,
 		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
@@ -110,7 +110,7 @@ func TestSummaryProgress_WeightedRollupFromChildren(t *testing.T) {
 	}
 	// Child B: 3 business days (Mon-Wed), 0% complete — 3x the weight of A,
 	// so the rollup should be much closer to B's 0% than a plain average.
-	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	if _, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:            "B",
 		ParentUID:       &parentUID,
 		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
@@ -120,7 +120,7 @@ func TestSummaryProgress_WeightedRollupFromChildren(t *testing.T) {
 		t.Fatalf("CreateTask B: %v", err)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	var parent *entity.Task
 	for i := range project.Tasks {
 		if project.Tasks[i].UID == parentUID {
@@ -141,7 +141,7 @@ func TestSummaryProgress_RecomputesWhenChildChanges(t *testing.T) {
 	ctx := context.Background()
 	parentUID := 1
 
-	child, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	child, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:            "Only child",
 		ParentUID:       &parentUID,
 		Start:           time.Date(2026, 6, 15, 8, 0, 0, 0, time.UTC),
@@ -153,11 +153,11 @@ func TestSummaryProgress_RecomputesWhenChildChanges(t *testing.T) {
 	}
 
 	newPercent := 100
-	if _, err := repo.UpdateTask(ctx, child.UID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err != nil {
+	if _, err := repo.UpdateTask(ctx, 1, child.UID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err != nil {
 		t.Fatalf("UpdateTask child: %v", err)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	var parent *entity.Task
 	for i := range project.Tasks {
 		if project.Tasks[i].UID == parentUID {
@@ -177,7 +177,7 @@ func TestUpdateTask_SummaryPercentCompleteRejected(t *testing.T) {
 	ctx := context.Background()
 	parentUID := 1
 
-	if _, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	if _, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:      "Child",
 		ParentUID: &parentUID,
 		Start:     time.Now(),
@@ -187,7 +187,7 @@ func TestUpdateTask_SummaryPercentCompleteRejected(t *testing.T) {
 	}
 
 	newPercent := 50
-	if _, err := repo.UpdateTask(ctx, parentUID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err == nil {
+	if _, err := repo.UpdateTask(ctx, 1, parentUID, repository.UpdateTaskInput{PercentComplete: &newPercent}); err == nil {
 		t.Fatal("expected error setting PercentComplete directly on a summary task, got nil")
 	}
 }
@@ -196,7 +196,7 @@ func TestCreateTask_UnknownParent(t *testing.T) {
 	repo := NewRepository(testProject())
 	missing := 999
 
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:      "Orphan",
 		ParentUID: &missing,
 		Start:     time.Now(),
@@ -210,7 +210,7 @@ func TestCreateTask_UnknownParent(t *testing.T) {
 func TestCreateTask_FinishBeforeStart(t *testing.T) {
 	repo := NewRepository(testProject())
 
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:   "Backwards",
 		Start:  time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC),
 		Finish: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
@@ -226,7 +226,7 @@ func TestCreateTask_SameDayEarlierFinishTimeAllowed(t *testing.T) {
 	// Same calendar day, but finish's time-of-day (typical MSPDI import: 08:00
 	// start) is earlier than start's (00:00, typical of a date-only edit) —
 	// must still be accepted since the calendar dates aren't out of order.
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:   "Same day",
 		Start:  time.Date(2026, 7, 1, 8, 0, 0, 0, time.UTC),
 		Finish: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
@@ -242,7 +242,7 @@ func TestUpdateTask_PartialFields(t *testing.T) {
 
 	newName := "Renamed"
 	newPercent := 50
-	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{
+	updated, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{
 		Name:            &newName,
 		PercentComplete: &newPercent,
 	})
@@ -271,11 +271,11 @@ func TestBusinessDaysDuration(t *testing.T) {
 		start, finish time.Time
 		wantDays      int
 	}{
-		{"same weekday", date(2026, 6, 15), date(2026, 6, 15), 1},          // Monday
-		{"same weekend day", date(2026, 6, 20), date(2026, 6, 20), 0},      // Saturday
-		{"full mon-fri week", date(2026, 6, 15), date(2026, 6, 19), 5},     // Mon-Fri
-		{"spans one weekend", date(2026, 6, 15), date(2026, 6, 21), 5},     // Mon-Sun
-		{"reversed order", date(2026, 6, 21), date(2026, 6, 15), 5},        // finish before start
+		{"same weekday", date(2026, 6, 15), date(2026, 6, 15), 1},      // Monday
+		{"same weekend day", date(2026, 6, 20), date(2026, 6, 20), 0},  // Saturday
+		{"full mon-fri week", date(2026, 6, 15), date(2026, 6, 19), 5}, // Mon-Fri
+		{"spans one weekend", date(2026, 6, 15), date(2026, 6, 21), 5}, // Mon-Sun
+		{"reversed order", date(2026, 6, 21), date(2026, 6, 15), 5},    // finish before start
 	}
 
 	for _, tc := range cases {
@@ -298,7 +298,7 @@ func TestUpdateTask_RecomputesDurationExcludingWeekends(t *testing.T) {
 	// (3,4,5, then 8,9,10,11,12 — the 6th/7th are a Sat/Sun and don't count).
 	newStart := time.Date(2026, 6, 3, 8, 0, 0, 0, time.UTC)
 	newFinish := time.Date(2026, 6, 12, 17, 0, 0, 0, time.UTC)
-	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Start: &newStart, Finish: &newFinish})
+	updated, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{Start: &newStart, Finish: &newFinish})
 	if err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
@@ -313,11 +313,11 @@ func TestUpdateTask_ReplacesAssignments(t *testing.T) {
 	ctx := context.Background()
 
 	newAssignees := []int{2}
-	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{AssigneeResourceUIDs: &newAssignees}); err != nil {
+	if _, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{AssigneeResourceUIDs: &newAssignees}); err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	var forTask1 []entity.Assignment
 	for _, a := range project.Assignments {
 		if a.TaskUID == 1 {
@@ -331,7 +331,7 @@ func TestUpdateTask_ReplacesAssignments(t *testing.T) {
 
 func TestUpdateTask_NotFound(t *testing.T) {
 	repo := NewRepository(testProject())
-	_, err := repo.UpdateTask(context.Background(), 999, repository.UpdateTaskInput{})
+	_, err := repo.UpdateTask(context.Background(), 1, 999, repository.UpdateTaskInput{})
 	if err == nil {
 		t.Fatal("expected error for unknown task, got nil")
 	}
@@ -341,7 +341,7 @@ func TestCreateTask_WithDependency(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
 
-	task, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	task, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:         "Successor",
 		Start:        time.Now(),
 		Finish:       time.Now(),
@@ -360,7 +360,7 @@ func TestCreateTask_SelfDependencyRejected(t *testing.T) {
 
 	// The task doesn't have a UID yet at validation time, so the check must
 	// compare against the UID it is about to be assigned (nextTaskUID = 6).
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:         "Self-referencing",
 		Start:        time.Now(),
 		Finish:       time.Now(),
@@ -374,7 +374,7 @@ func TestCreateTask_SelfDependencyRejected(t *testing.T) {
 func TestCreateTask_DuplicateDependencyRejected(t *testing.T) {
 	repo := NewRepository(testProject())
 
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:   "Duplicate deps",
 		Start:  time.Now(),
 		Finish: time.Now(),
@@ -391,7 +391,7 @@ func TestCreateTask_DuplicateDependencyRejected(t *testing.T) {
 func TestCreateTask_UnknownPredecessorRejected(t *testing.T) {
 	repo := NewRepository(testProject())
 
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:         "Orphan dependency",
 		Start:        time.Now(),
 		Finish:       time.Now(),
@@ -405,7 +405,7 @@ func TestCreateTask_UnknownPredecessorRejected(t *testing.T) {
 func TestCreateTask_InvalidDependencyTypeRejected(t *testing.T) {
 	repo := NewRepository(testProject())
 
-	_, err := repo.CreateTask(context.Background(), repository.CreateTaskInput{
+	_, err := repo.CreateTask(context.Background(), 1, repository.CreateTaskInput{
 		Name:         "Bad type",
 		Start:        time.Now(),
 		Finish:       time.Now(),
@@ -421,7 +421,7 @@ func TestUpdateTask_ReplacesDependencies(t *testing.T) {
 	ctx := context.Background()
 
 	newDeps := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
-	updated, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &newDeps})
+	updated, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{Dependencies: &newDeps})
 	if err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
@@ -436,13 +436,13 @@ func TestUpdateTask_CycleRejected(t *testing.T) {
 
 	// 1 depends on 5 ...
 	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
-	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+	if _, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 
 	// ... so making 5 depend on 1 would close a cycle and must be rejected.
 	depsOn1 := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
-	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOn1}); err == nil {
+	if _, err := repo.UpdateTask(ctx, 1, 5, repository.UpdateTaskInput{Dependencies: &depsOn1}); err == nil {
 		t.Fatal("expected error for direct cycle, got nil")
 	}
 }
@@ -452,7 +452,7 @@ func TestUpdateTask_TransitiveCycleRejected(t *testing.T) {
 	ctx := context.Background()
 
 	// A (uid 6) -> depends on -> B (uid 1) -> depends on -> C (uid 5).
-	a, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	a, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:         "A",
 		Start:        time.Now(),
 		Finish:       time.Now(),
@@ -462,14 +462,14 @@ func TestUpdateTask_TransitiveCycleRejected(t *testing.T) {
 		t.Fatalf("CreateTask: %v", err)
 	}
 	depsOn5 := []entity.Dependency{{PredecessorUID: 5, Type: entity.FinishToStart}}
-	if _, err := repo.UpdateTask(ctx, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
+	if _, err := repo.UpdateTask(ctx, 1, 1, repository.UpdateTaskInput{Dependencies: &depsOn5}); err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 
 	// Closing the loop: C (5) depends on A (a.UID) would make A transitively
 	// depend on itself (A -> 1 -> 5 -> A).
 	depsOnA := []entity.Dependency{{PredecessorUID: a.UID, Type: entity.FinishToStart}}
-	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &depsOnA}); err == nil {
+	if _, err := repo.UpdateTask(ctx, 1, 5, repository.UpdateTaskInput{Dependencies: &depsOnA}); err == nil {
 		t.Fatal("expected error for transitive cycle, got nil")
 	}
 }
@@ -479,15 +479,15 @@ func TestDeleteTask_CleansDanglingDependencies(t *testing.T) {
 	ctx := context.Background()
 
 	deps := []entity.Dependency{{PredecessorUID: 1, Type: entity.FinishToStart}}
-	if _, err := repo.UpdateTask(ctx, 5, repository.UpdateTaskInput{Dependencies: &deps}); err != nil {
+	if _, err := repo.UpdateTask(ctx, 1, 5, repository.UpdateTaskInput{Dependencies: &deps}); err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 
-	if err := repo.DeleteTask(ctx, 1); err != nil {
+	if err := repo.DeleteTask(ctx, 1, 1); err != nil {
 		t.Fatalf("DeleteTask: %v", err)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	for _, task := range project.Tasks {
 		if task.UID != 5 {
 			continue
@@ -505,7 +505,7 @@ func TestDeleteTask_Cascade(t *testing.T) {
 	ctx := context.Background()
 	parentUID := 1
 
-	child, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+	child, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 		Name:      "Child",
 		ParentUID: &parentUID,
 		Start:     time.Now(),
@@ -515,11 +515,11 @@ func TestDeleteTask_Cascade(t *testing.T) {
 		t.Fatalf("CreateTask: %v", err)
 	}
 
-	if err := repo.DeleteTask(ctx, parentUID); err != nil {
+	if err := repo.DeleteTask(ctx, 1, parentUID); err != nil {
 		t.Fatalf("DeleteTask: %v", err)
 	}
 
-	project, _ := repo.GetProject(ctx)
+	project, _ := repo.GetProject(ctx, 1)
 	for _, task := range project.Tasks {
 		if task.UID == parentUID || task.UID == child.UID {
 			t.Errorf("task %d still present after cascade delete", task.UID)
@@ -534,7 +534,7 @@ func TestDeleteTask_Cascade(t *testing.T) {
 
 func TestDeleteTask_NotFound(t *testing.T) {
 	repo := NewRepository(testProject())
-	if err := repo.DeleteTask(context.Background(), 999); err == nil {
+	if err := repo.DeleteTask(context.Background(), 1, 999); err == nil {
 		t.Fatal("expected error for unknown task, got nil")
 	}
 }
@@ -543,10 +543,10 @@ func TestGetProject_ReturnsIndependentClone(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
 
-	first, _ := repo.GetProject(ctx)
+	first, _ := repo.GetProject(ctx, 1)
 	first.Tasks[0].Name = "Mutated by caller"
 
-	second, _ := repo.GetProject(ctx)
+	second, _ := repo.GetProject(ctx, 1)
 	if second.Tasks[0].Name == "Mutated by caller" {
 		t.Error("mutating a GetProject result affected a later GetProject call — not an independent clone")
 	}
@@ -561,7 +561,7 @@ func TestConcurrentCreateTask(t *testing.T) {
 	uids := make(chan int, n)
 	for range n {
 		wg.Go(func() {
-			task, err := repo.CreateTask(ctx, repository.CreateTaskInput{
+			task, err := repo.CreateTask(ctx, 1, repository.CreateTaskInput{
 				Name:   "Concurrent",
 				Start:  time.Now(),
 				Finish: time.Now().Add(24 * time.Hour),
@@ -585,5 +585,155 @@ func TestConcurrentCreateTask(t *testing.T) {
 	}
 	if len(seen) != n {
 		t.Errorf("got %d unique UIDs, want %d", len(seen), n)
+	}
+}
+
+func TestCreateProject_IsolatedFromSeedProject(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	created, err := repo.CreateProject(ctx, repository.CreateProjectInput{Name: "New", Description: "Fresh start"})
+	if err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
+	if created.ID == 1 {
+		t.Fatalf("new project got the seed project's ID 1")
+	}
+	if len(created.Tasks) != 0 {
+		t.Errorf("len(Tasks) = %d, want 0 for a brand-new project", len(created.Tasks))
+	}
+	if created.StartDate.IsZero() || created.FinishDate.IsZero() {
+		t.Error("StartDate/FinishDate are zero — the frontend's Gantt grid can't build a range from an empty string")
+	}
+	if created.CreatedBy == "" {
+		t.Error("CreatedBy is empty, want the placeholder stand-in")
+	}
+
+	// A task created in the new project must not appear in, or mutate, the
+	// seed project.
+	if _, err := repo.CreateTask(ctx, created.ID, repository.CreateTaskInput{
+		Name: "Only in the new project", Start: time.Now(), Finish: time.Now(),
+	}); err != nil {
+		t.Fatalf("CreateTask in new project: %v", err)
+	}
+
+	seed, err := repo.GetProject(ctx, 1)
+	if err != nil {
+		t.Fatalf("GetProject(seed): %v", err)
+	}
+	if len(seed.Tasks) != 2 {
+		t.Errorf("seed project len(Tasks) = %d, want 2 (unaffected by the other project's CreateTask)", len(seed.Tasks))
+	}
+}
+
+func TestCreateTask_UnknownProjectRejected(t *testing.T) {
+	repo := NewRepository(testProject())
+
+	_, err := repo.CreateTask(context.Background(), 999, repository.CreateTaskInput{
+		Name: "Orphan project", Start: time.Now(), Finish: time.Now(),
+	})
+	if err == nil {
+		t.Fatal("expected error for unknown project, got nil")
+	}
+}
+
+func TestUpdateProject_EditsNameAndDescription(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	newName := "Renamed project"
+	newDescription := "New description"
+	updated, err := repo.UpdateProject(ctx, 1, repository.UpdateProjectInput{Name: &newName, Description: &newDescription})
+	if err != nil {
+		t.Fatalf("UpdateProject: %v", err)
+	}
+	if updated.Name != newName || updated.Title != newName {
+		t.Errorf("Name/Title = %q/%q, want both %q", updated.Name, updated.Title, newName)
+	}
+	if updated.Description != newDescription {
+		t.Errorf("Description = %q, want %q", updated.Description, newDescription)
+	}
+}
+
+func TestListProjects_IncludesAllCreatedProjects(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	if _, err := repo.CreateProject(ctx, repository.CreateProjectInput{Name: "Second"}); err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
+
+	projects, err := repo.ListProjects(ctx)
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(projects) != 2 {
+		t.Fatalf("len(projects) = %d, want 2 (seed + created)", len(projects))
+	}
+}
+
+// Go's map iteration order is randomized — without an explicit sort in
+// ListProjects, the "Проекты" page would reshuffle on every fetch (found via
+// manual browser testing, not a hypothetical).
+func TestListProjects_OrderedByID(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	for i := 0; i < 5; i++ {
+		if _, err := repo.CreateProject(ctx, repository.CreateProjectInput{Name: "Extra"}); err != nil {
+			t.Fatalf("CreateProject: %v", err)
+		}
+	}
+
+	for range 5 {
+		projects, err := repo.ListProjects(ctx)
+		if err != nil {
+			t.Fatalf("ListProjects: %v", err)
+		}
+		for i := 1; i < len(projects); i++ {
+			if projects[i].ID < projects[i-1].ID {
+				t.Fatalf("ListProjects not ordered by ID: %+v", projects)
+			}
+		}
+	}
+}
+
+func TestImportProject_OverridesMetadataFromForm(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	imported := &entity.Project{
+		Name:  "Whatever the file called itself",
+		Title: "Whatever the file called itself",
+		Tasks: []entity.Task{{UID: 1, ID: 1, Name: "Imported task"}},
+	}
+	project, err := repo.ImportProject(ctx, repository.ImportProjectInput{
+		Name:        "Form name",
+		Description: "Form description",
+		Imported:    imported,
+	})
+	if err != nil {
+		t.Fatalf("ImportProject: %v", err)
+	}
+	if project.Name != "Form name" || project.Title != "Form name" {
+		t.Errorf("Name/Title = %q/%q, want both %q (form overrides the file's own Name/Title)", project.Name, project.Title, "Form name")
+	}
+	if project.Description != "Form description" {
+		t.Errorf("Description = %q, want %q", project.Description, "Form description")
+	}
+	if len(project.Tasks) != 1 {
+		t.Fatalf("len(Tasks) = %d, want 1 (from the imported file)", len(project.Tasks))
+	}
+
+	// The imported project's task UIDs start fresh from the file — a
+	// follow-up CreateTask must not collide with them.
+	created, err := repo.CreateTask(ctx, project.ID, repository.CreateTaskInput{
+		Name: "New in imported project", Start: time.Now(), Finish: time.Now(),
+	})
+	if err != nil {
+		t.Fatalf("CreateTask after import: %v", err)
+	}
+	if created.UID == 1 {
+		t.Errorf("new task UID collided with the imported task's UID 1")
 	}
 }
