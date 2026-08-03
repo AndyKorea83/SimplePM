@@ -35,8 +35,14 @@ type createTaskRequest struct {
 	Dependencies         []dependencyDTO `json:"dependencies,omitempty"`
 }
 
-// CreateTask handles POST /api/tasks.
+// CreateTask handles POST /api/projects/{projectId}/tasks.
 func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
+	projectID, err := projectIDParam(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var req createTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -54,7 +60,7 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := h.service.CreateTask(r.Context(), repository.CreateTaskInput{
+	task, err := h.service.CreateTask(r.Context(), projectID, repository.CreateTaskInput{
 		Name:                 req.Name,
 		ParentUID:            req.ParentUID,
 		Start:                start,
@@ -87,8 +93,13 @@ type updateTaskRequest struct {
 	Dependencies         *[]dependencyDTO `json:"dependencies,omitempty"`
 }
 
-// UpdateTask handles PATCH /api/tasks/{uid}.
+// UpdateTask handles PATCH /api/projects/{projectId}/tasks/{uid}.
 func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
+	projectID, err := projectIDParam(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	uid, err := strconv.Atoi(chi.URLParam(r, "uid"))
 	if err != nil {
 		http.Error(w, "invalid task uid", http.StatusBadRequest)
@@ -128,7 +139,7 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		input.Dependencies = &converted
 	}
 
-	task, err := h.service.UpdateTask(r.Context(), uid, input)
+	task, err := h.service.UpdateTask(r.Context(), projectID, uid, input)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -140,15 +151,20 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteTask handles DELETE /api/tasks/{uid}.
+// DeleteTask handles DELETE /api/projects/{projectId}/tasks/{uid}.
 func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
+	projectID, err := projectIDParam(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	uid, err := strconv.Atoi(chi.URLParam(r, "uid"))
 	if err != nil {
 		http.Error(w, "invalid task uid", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.DeleteTask(r.Context(), uid); err != nil {
+	if err := h.service.DeleteTask(r.Context(), projectID, uid); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
