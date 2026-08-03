@@ -48,8 +48,12 @@ export type AssignmentDTO = {
 }
 
 export type ProjectDTO = {
+  id: number
   name: string
   title: string
+  description?: string
+  createdBy: string
+  createdAt: string
   startDate: string
   finishDate: string
   tasks: TaskDTO[]
