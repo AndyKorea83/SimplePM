@@ -13,12 +13,12 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/usecase"
 )
 
-// TaskHandler exposes task mutations over HTTP.
+// TaskHandler отдаёт мутации задач по HTTP.
 type TaskHandler struct {
 	service usecase.ProjectService
 }
 
-// NewTaskHandler builds a TaskHandler backed by service.
+// NewTaskHandler строит TaskHandler поверх service.
 func NewTaskHandler(service usecase.ProjectService) *TaskHandler {
 	return &TaskHandler{service: service}
 }
@@ -35,7 +35,7 @@ type createTaskRequest struct {
 	Dependencies         []dependencyDTO `json:"dependencies,omitempty"`
 }
 
-// CreateTask handles POST /api/projects/{projectId}/tasks.
+// CreateTask обрабатывает POST /api/projects/{projectId}/tasks.
 func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {
@@ -93,7 +93,7 @@ type updateTaskRequest struct {
 	Dependencies         *[]dependencyDTO `json:"dependencies,omitempty"`
 }
 
-// UpdateTask handles PATCH /api/projects/{projectId}/tasks/{uid}.
+// UpdateTask обрабатывает PATCH /api/projects/{projectId}/tasks/{uid}.
 func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {
@@ -151,7 +151,7 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteTask handles DELETE /api/projects/{projectId}/tasks/{uid}.
+// DeleteTask обрабатывает DELETE /api/projects/{projectId}/tasks/{uid}.
 func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {

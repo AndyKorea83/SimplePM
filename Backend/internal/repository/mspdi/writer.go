@@ -9,17 +9,17 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
 )
 
-// mspdiNamespace is the XML namespace MSPDI files declare on their root
-// <Project> element (see samples/project.xml) — Write reproduces it so the
-// exported file looks like a real MSPDI document, even though Parse doesn't
-// need it (Go's encoding/xml matches elements by local name).
+// mspdiNamespace — XML-неймспейс, который MSPDI-файлы объявляют на корневом
+// элементе <Project> (см. samples/project.xml) — Write воспроизводит его,
+// чтобы экспортированный файл выглядел как настоящий MSPDI-документ, хотя
+// Parse он не нужен (encoding/xml в Go сопоставляет элементы по локальному имени).
 const mspdiNamespace = "http://schemas.microsoft.com/project"
 
-// Write serializes p as an MSPDI XML document, covering only the fields the
-// application actually models (Name/Title/dates/Tasks/Resources/
-// Assignments) — not a full MS Project schema clone (Calendars, SaveVersion,
-// etc. aren't tracked by entity.Project, so there is nothing real to write
-// there). The result round-trips through Parse.
+// Write сериализует p как MSPDI XML-документ, покрывая только те поля, что
+// реально моделирует приложение (Name/Title/даты/Tasks/Resources/
+// Assignments) — не полный клон схемы MS Project (Calendars, SaveVersion
+// и т.п. не хранятся в entity.Project, писать их там нечего). Результат
+// проходит round-trip через Parse.
 func Write(w io.Writer, p *entity.Project) error {
 	doc := fromProject(p)
 
@@ -107,7 +107,7 @@ func formatMspdiTime(t time.Time) string {
 	return t.Format(mspdiTimeLayout)
 }
 
-// formatISODuration is the reverse of parseISODuration: e.g. 88h -> "PT88H0M0S".
+// formatISODuration — обратная функция к parseISODuration: например, 88h -> "PT88H0M0S".
 func formatISODuration(d time.Duration) string {
 	total := int64(d.Round(time.Second) / time.Second)
 	hours := total / 3600
@@ -116,14 +116,14 @@ func formatISODuration(d time.Duration) string {
 	return fmt.Sprintf("PT%dH%dM%dS", hours, minutes, seconds)
 }
 
-// orderedByHierarchy reorders tasks into depth-first pre-order (each parent
-// immediately followed by its children) using ParentUID, keeping siblings in
-// their original relative order. Tasks are stored append-only on mutation
-// (CreateTask always appends to the end of the slice, wherever its parent
-// sits), so the stored order does not generally reflect the tree shape —
-// but Parse's assignParentUIDs reconstructs hierarchy purely from document
-// order + OutlineLevel, so Write must restore that order or a subsequent
-// import would rebuild the wrong tree.
+// orderedByHierarchy пересобирает задачи в depth-first обход (каждый
+// родитель сразу сопровождается своими детьми) по ParentUID, сохраняя
+// исходный относительный порядок сиблингов. Задачи хранятся append-only при
+// мутации (CreateTask всегда добавляет в конец среза, где бы ни сидел её
+// родитель), поэтому хранимый порядок обычно не отражает форму дерева — а
+// assignParentUIDs в Parse восстанавливает иерархию исключительно из
+// порядка документа + OutlineLevel, так что Write обязан восстановить этот
+// порядок, иначе последующий импорт пересобрал бы неверное дерево.
 func orderedByHierarchy(tasks []entity.Task) []entity.Task {
 	byUID := make(map[int]entity.Task, len(tasks))
 	childrenByParent := make(map[int][]int, len(tasks))
