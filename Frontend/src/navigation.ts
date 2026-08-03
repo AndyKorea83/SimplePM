@@ -49,6 +49,7 @@ export const NAV_ROUTES: NavRoute[] = [
     children: [
       { key: 'bug-report', label: 'Отчет по багам', path: '/qa/bugs' },
       { key: 'qa-board', label: 'Доска', path: '/qa/board' },
+      { key: 'qa-metrics', label: 'Метрики', path: '/qa/metrics' },
     ],
   },
   { key: 'embedded', label: 'Embedded', path: '/embedded' },
