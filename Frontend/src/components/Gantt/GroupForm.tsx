@@ -3,7 +3,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { formatDayMonth } from './dateGrid'
 import { DependenciesField } from './DependenciesField'
-import { Field, inputClass } from './FormField'
+import { Field, inputClass } from '../ui/Input'
 
 export type GroupFormValues = {
   name: string

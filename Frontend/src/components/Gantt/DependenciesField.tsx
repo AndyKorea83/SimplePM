@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Field, inputClass } from './FormField'
+import { Field, inputClass } from '../ui/Input'
 import { PredecessorPicker } from './PredecessorPicker'
 import { DEPENDENCY_TYPE_OPTIONS } from './types'
 

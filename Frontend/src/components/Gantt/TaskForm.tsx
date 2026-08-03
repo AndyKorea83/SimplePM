@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { DependenciesField } from './DependenciesField'
-import { Field, inputClass } from './FormField'
+import { Field, inputClass } from '../ui/Input'
 
 export type TaskFormValues = {
   name: string
