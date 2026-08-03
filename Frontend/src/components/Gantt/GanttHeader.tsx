@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '../ui/Button'
 import calendarIcon from '../../assets/icons/calendar.svg'
 import settingsIcon from '../../assets/icons/settings.svg'
 import chevronDownIcon from '../../assets/icons/chevron-down.svg'
@@ -160,13 +161,9 @@ export function GanttHeader({
           <img src={settingsIcon} alt="" style={{ width: 14, height: 14 }} />
           <p className="text-[13px] font-medium text-[var(--text-secondary)]">Настройки</p>
         </div>
-        <button
-          type="button"
-          onClick={onAddTask}
-          className="cursor-pointer rounded-lg bg-[#4078d9] px-3 py-2 text-[13px] font-medium text-white"
-        >
+        <Button variant="primary" onClick={onAddTask}>
           + Задача
-        </button>
+        </Button>
       </div>
     </div>
   )
