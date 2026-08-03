@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { PageShell } from '../ui/PageShell'
 import { createTask, deleteTask, fetchProject, updateTask } from './api'
 import { buildTaskTree, filterTaskTree, flattenVisible } from './buildTaskTree'
 import { formatDateRange } from './dateGrid'
@@ -435,7 +436,7 @@ export function GanttPage() {
   const groupInfo = isEditingGroup && formState?.task ? groupInfoByTaskUid.get(formState.task.uid) : undefined
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+    <PageShell>
       <GanttHeader
         title={project.title || project.name}
         dateRangeLabel={formatDateRange(rangeStart, rangeEnd)}
@@ -500,6 +501,6 @@ export function GanttPage() {
           onClose={closeForm}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

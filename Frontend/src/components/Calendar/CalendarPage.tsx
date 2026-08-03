@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PageShell } from '../ui/PageShell'
 import { fetchTimesheetMonth } from './api'
 import { EmployeeCard } from './EmployeeCard'
 import { ALL_EMPLOYEES_VALUE, EmployeeSelector } from './EmployeeSelector'
@@ -32,7 +33,7 @@ export function CalendarPage() {
     selectedEmployee === ALL_EMPLOYEES_VALUE ? employees : employees.filter((e) => e.uid === selectedEmployee)
 
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--surface)]">
+    <PageShell>
       <TimeSectionHeader />
       <div className="flex w-full items-start gap-4 px-4 py-[10px]">
         <EmployeeSelector
@@ -53,6 +54,6 @@ export function CalendarPage() {
             <EmployeeCard key={employee.uid} employee={employee} year={year} month={month} />
           ))}
       </div>
-    </div>
+    </PageShell>
   )
 }
