@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../ui/Button'
+import { Modal } from '../ui/Modal'
 import { formatDayMonth } from './dateGrid'
 import { DependenciesField } from './DependenciesField'
 import { Field, inputClass } from './FormField'
@@ -93,11 +94,8 @@ export function GroupForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <form
-        onSubmit={handleSubmit}
-        className="flex w-[420px] max-h-[90vh] flex-col gap-4 overflow-y-auto rounded-lg bg-[var(--surface)] p-6 shadow-xl"
-      >
+    <Modal>
+      <form onSubmit={handleSubmit} className="contents">
         <h2 className="text-[16px] font-bold text-[var(--text-primary)]">Группа задач</h2>
 
         <Field label="Название">
@@ -185,6 +183,6 @@ export function GroupForm({
           </div>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }
