@@ -1,4 +1,4 @@
-// Mirrors src/Backend/internal/delivery/http/dto.go
+// Зеркалит src/Backend/internal/delivery/http/dto.go
 
 export type DependencyDTO = {
   predecessorUid: number
@@ -56,6 +56,8 @@ export type ProjectDTO = {
   createdAt: string
   startDate: string
   finishDate: string
+  closed: boolean
+  closedAt?: string
   tasks: TaskDTO[]
   resources: ResourceDTO[]
   assignments: AssignmentDTO[]

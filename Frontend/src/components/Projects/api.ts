@@ -39,6 +39,17 @@ export async function updateProject(id: number, input: CreateProjectRequest): Pr
   return (await unwrap(response, `failed to update project: ${response.status}`)).json()
 }
 
+// Открыть/закрыть проект — тот же PATCH-эндпоинт метаданных, отдельное
+// булево поле, а не свой роут.
+export async function setProjectClosed(id: number, closed: boolean): Promise<ProjectDTO> {
+  const response = await fetch(`${API_BASE_URL}/api/projects/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ closed }),
+  })
+  return (await unwrap(response, `failed to ${closed ? 'close' : 'open'} project: ${response.status}`)).json()
+}
+
 export type ImportProjectRequest = {
   name: string
   description?: string
