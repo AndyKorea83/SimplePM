@@ -113,8 +113,17 @@ function NavItem({ route, collapsed, isActive }: { route: NavRoute; collapsed: b
   )
 }
 
+// Точное совпадение ИЛИ вложенный путь (напр. "/gantt/diagrams/42" под
+// вкладкой "/gantt/diagrams") — нужно для разделов с динамическим id в
+// пути (диаграмма конкретного проекта), где сам таб не хранит точный URL.
+function matchesPath(path: string, pathname: string): boolean {
+  return pathname === path || pathname.startsWith(path + '/')
+}
+
 function isRouteActive(route: NavRoute, pathname: string): boolean {
-  return route.children ? route.children.some((child) => child.path === pathname) : pathname === route.path
+  return route.children
+    ? route.children.some((child) => matchesPath(child.path, pathname))
+    : matchesPath(route.path!, pathname)
 }
 
 const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed'
