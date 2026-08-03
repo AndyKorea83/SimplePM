@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { DependenciesField } from './DependenciesField'
-import { Field, inputClass } from '../ui/Input'
+import { Checkbox, Field, inputClass } from '../ui/Input'
 
 export type TaskFormValues = {
   name: string
@@ -167,26 +167,22 @@ export function TaskForm({
           />
         </Field>
 
-        <label className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-          <input
-            type="checkbox"
-            checked={values.isBlocked}
-            onChange={(e) => setValues((prev) => ({ ...prev, isBlocked: e.target.checked }))}
-          />
-          Заблокирована
-        </label>
+        <Checkbox
+          label="Заблокирована"
+          checked={values.isBlocked}
+          onChange={(checked) => setValues((prev) => ({ ...prev, isBlocked: checked }))}
+        />
 
         <Field label="Исполнители">
           <div className="flex max-h-[140px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] p-2">
             {resourceOptions.map((resource) => (
-              <label key={resource.uid} className="flex items-center gap-2 text-[13px] text-[var(--text-primary)]">
-                <input
-                  type="checkbox"
-                  checked={values.assigneeResourceUids.includes(resource.uid)}
-                  onChange={() => toggleAssignee(resource.uid)}
-                />
-                {resource.name}
-              </label>
+              <Checkbox
+                key={resource.uid}
+                label={resource.name}
+                checked={values.assigneeResourceUids.includes(resource.uid)}
+                onChange={() => toggleAssignee(resource.uid)}
+                labelClassName="text-[var(--text-primary)]"
+              />
             ))}
           </div>
         </Field>

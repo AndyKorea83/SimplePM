@@ -28,3 +28,21 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   const { className, ...rest } = props
   return <select className={`cursor-pointer font-medium ${inputClass} ${className ?? ''}`} {...rest} />
 }
+
+type CheckboxProps = {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  // Цвет подписи разный у разных чекбоксов (TaskForm: "Заблокирована" —
+  // text-secondary, список исполнителей — text-primary), поэтому не зашит.
+  labelClassName?: string
+}
+
+export function Checkbox({ label, checked, onChange, labelClassName = 'text-[var(--text-secondary)]' }: CheckboxProps) {
+  return (
+    <label className={`flex items-center gap-2 text-[13px] ${labelClassName}`}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  )
+}
