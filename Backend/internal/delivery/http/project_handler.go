@@ -14,12 +14,12 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/usecase"
 )
 
-// ProjectHandler exposes project/Gantt data over HTTP.
+// ProjectHandler отдаёт данные проекта/Ганта по HTTP.
 type ProjectHandler struct {
 	service usecase.ProjectService
 }
 
-// NewProjectHandler builds a ProjectHandler backed by service.
+// NewProjectHandler строит ProjectHandler поверх service.
 func NewProjectHandler(service usecase.ProjectService) *ProjectHandler {
 	return &ProjectHandler{service: service}
 }
@@ -32,7 +32,7 @@ func projectIDParam(r *http.Request) (int, error) {
 	return id, nil
 }
 
-// GetProject handles GET /api/projects/{projectId}.
+// GetProject обрабатывает GET /api/projects/{projectId}.
 func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {
@@ -53,7 +53,7 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ListProjects handles GET /api/projects — the "Проекты" list page.
+// ListProjects обрабатывает GET /api/projects — страница списка «Проекты».
 func (h *ProjectHandler) ListProjects(w http.ResponseWriter, r *http.Request) {
 	summaries, err := h.service.ListProjectSummaries(r.Context())
 	if err != nil {
@@ -78,8 +78,8 @@ type createProjectRequest struct {
 	Description string `json:"description,omitempty"`
 }
 
-// CreateProject handles POST /api/projects — creates an empty project (no
-// tasks yet), which the "Новый проект" button opens a modal for.
+// CreateProject обрабатывает POST /api/projects — создаёт пустой проект
+// (без задач), для него кнопка «Новый проект» открывает модалку.
 func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var req createProjectRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -110,10 +110,11 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 type updateProjectRequest struct {
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
+	Closed      *bool   `json:"closed,omitempty"`
 }
 
-// UpdateProject handles PATCH /api/projects/{projectId} — the "Проекты"
-// list's edit modal only touches metadata; dates/task counts are derived.
+// UpdateProject обрабатывает PATCH /api/projects/{projectId} — модалка
+// редактирования списка «Проекты» правит только метаданные; даты/счётчики задач вычисляемые.
 func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {
@@ -130,6 +131,7 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	project, err := h.service.UpdateProject(r.Context(), projectID, repository.UpdateProjectInput{
 		Name:        req.Name,
 		Description: req.Description,
+		Closed:      req.Closed,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -142,11 +144,12 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ImportProject handles POST /api/projects/import — multipart form with
-// name, description and an MSPDI XML file, per the "Импортировать" modal.
+// ImportProject обрабатывает POST /api/projects/import — multipart-форма с
+// name, description и MSPDI XML-файлом, по модалке «Импортировать».
 func (h *ProjectHandler) ImportProject(w http.ResponseWriter, r *http.Request) {
-	// 32MB is chi/net-http's usual default for ParseMultipartForm; project
-	// XML files are small text documents, nowhere near that size in practice.
+	// 32MB — обычное значение по умолчанию для ParseMultipartForm; XML-файлы
+	// проектов — небольшие текстовые документы, на практике далеко не
+	// приближаются к этому размеру.
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "invalid multipart form", http.StatusBadRequest)
 		return
@@ -179,8 +182,8 @@ func (h *ProjectHandler) ImportProject(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ExportProject handles GET /api/projects/{projectId}/export — downloads
-// the project as an MSPDI XML file (samples/project.xml's format).
+// ExportProject обрабатывает GET /api/projects/{projectId}/export — отдаёт
+// проект как MSPDI XML-файл (формат samples/project.xml).
 func (h *ProjectHandler) ExportProject(w http.ResponseWriter, r *http.Request) {
 	projectID, err := projectIDParam(r)
 	if err != nil {

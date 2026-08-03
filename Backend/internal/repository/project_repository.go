@@ -6,36 +6,39 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
 )
 
-// CreateProjectInput describes a brand-new, empty project (no tasks yet).
+// CreateProjectInput описывает совершенно новый, пустой проект (без задач).
 type CreateProjectInput struct {
 	Name        string
 	Description string
 }
 
-// UpdateProjectInput is a partial update: nil fields are left unchanged.
-// Only metadata is editable this way — dates/task counts are derived from
-// tasks, not settable directly (same principle as summary tasks, see
-// memstore.UpdateTask's guard against editing a summary's PercentComplete).
+// UpdateProjectInput — частичное обновление: nil-поля остаются без изменений.
+// Так редактируются только метаданные — даты/счётчики задач вычисляются из
+// задач и напрямую не задаются (тот же принцип, что и у summary-задач, см.
+// защиту memstore.UpdateTask от прямой правки PercentComplete группы).
+// Closed — открыть/закрыть проект (true — закрыть, false — открыть); nil —
+// не трогать текущее состояние.
 type UpdateProjectInput struct {
 	Name        *string
 	Description *string
+	Closed      *bool
 }
 
-// ImportProjectInput describes a project created from an uploaded MSPDI XML
-// file. Imported is already parsed (via mspdi.Parse, at the usecase layer —
-// this package stays storage-format-agnostic) and supplies
-// Tasks/Resources/Assignments/dates; Name/Description come from the import
-// form instead and override whatever the file's own Name/Title said.
+// ImportProjectInput описывает проект, создаваемый из загруженного MSPDI XML.
+// Imported уже распарсен (через mspdi.Parse, на уровне usecase — этот пакет
+// не должен знать формат хранения) и несёт Tasks/Resources/Assignments/даты;
+// Name/Description приходят из формы импорта вместо этого и переопределяют
+// то, что было в Name/Title самого файла.
 type ImportProjectInput struct {
 	Name        string
 	Description string
 	Imported    *entity.Project
 }
 
-// ProjectRepository loads project data for the Gantt chart. Stage 1 backs it
-// with an in-memory store seeded from an MSPDI XML file (see mspdi
-// subpackage); stage 2 is expected to add an implementation backed by
-// Gitea/MySQL behind this same interface.
+// ProjectRepository загружает данные проекта для диаграммы Ганта. Этап 1
+// реализует его in-memory хранилищем, затравленным из MSPDI XML-файла (см.
+// пакет mspdi); Этап 2 предполагает реализацию поверх Gitea/MySQL за тем же
+// интерфейсом.
 type ProjectRepository interface {
 	GetProject(ctx context.Context, projectID int) (*entity.Project, error)
 	ListProjects(ctx context.Context) ([]entity.Project, error)

@@ -1,6 +1,6 @@
-// Package usecase holds the application's business logic, decoupled from
-// both how project data is stored (internal/repository) and how it is
-// exposed (internal/delivery).
+// Package usecase содержит бизнес-логику приложения, отделённую от того,
+// как данные проекта хранятся (internal/repository) и как они отдаются
+// наружу (internal/delivery).
 package usecase
 
 import (
@@ -14,35 +14,40 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository/mspdi"
 )
 
-// ProjectSummary is the "Проекты" list's per-project view: metadata plus a
-// few fields derived from the project's tasks, rather than stored directly.
+// ProjectSummary — карточное представление проекта для списка «Проекты»:
+// метаданные плюс несколько полей, вычисленных из задач проекта, а не
+// хранимых напрямую.
 type ProjectSummary struct {
 	Project entity.Project
 
-	// TaskTotal/TaskDone count leaf (non-summary) tasks only — summary/group
-	// rows are a rollup of their children, not separate work items, mirroring
-	// how the frontend's GanttPage computes its own totals.
+	// TaskTotal/TaskDone считают только листовые (не summary) задачи —
+	// строки-группы являются роллапом своих детей, а не отдельными
+	// единицами работы, аналогично тому, как фронтовый GanttPage считает свои итоги.
 	TaskTotal int
 	TaskDone  int
 
-	// ComputedFinish is the latest task Finish date in the project (zero if
-	// there are no tasks yet), not whatever Project.FinishDate happens to
-	// hold — the "Проекты" page shows a deadline derived from actual work.
+	// ComputedFinish — самая поздняя дата Finish среди задач проекта (нулевая,
+	// если задач ещё нет), а не то, что хранится в Project.FinishDate —
+	// страница «Проекты» показывает срок, вычисленный из реальной работы.
 	ComputedFinish time.Time
 
-	// BehindSchedule is true if at least one incomplete task's Finish date
-	// (by calendar day) is already in the past. Same "overdue" criterion as
-	// the frontend's Gantt/status.ts::deriveStatus, except it does NOT defer
-	// to IsBlocked first — a blocked-and-overdue task still counts as the
-	// project being behind schedule.
+	// BehindSchedule — true, если хотя бы у одной незавершённой задачи дата
+	// Finish (по календарному дню) уже в прошлом. Тот же критерий
+	// "просрочено", что у фронтового Gantt/status.ts::deriveStatus, но БЕЗ
+	// её приоритета IsBlocked — заблокированная просроченная задача всё
+	// равно считается отставанием проекта от графика.
 	BehindSchedule bool
+
+	// Closed — вычисляется из Project.ClosedAt (nil -> false), чтобы
+	// вызывающей стороне не пришлось знать про entity.Project напрямую.
+	Closed bool
 }
 
-// summarize derives a ProjectSummary from a project's current tasks, as of
-// now (injected rather than time.Now() so it stays deterministic to test).
+// summarize вычисляет ProjectSummary по текущим задачам проекта на момент
+// now (передаётся параметром, а не берётся из time.Now(), чтобы тест был детерминирован).
 func summarize(p entity.Project, now time.Time) ProjectSummary {
 	today := truncateToDate(now)
-	summary := ProjectSummary{Project: p}
+	summary := ProjectSummary{Project: p, Closed: p.ClosedAt != nil}
 
 	for _, t := range p.Tasks {
 		if t.IsSummary {
@@ -67,8 +72,7 @@ func truncateToDate(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-// ProjectService exposes project/Gantt data and task mutations to delivery
-// layers.
+// ProjectService отдаёт данные проекта/Ганта и мутации задач слоям доставки.
 type ProjectService interface {
 	GetProject(ctx context.Context, projectID int) (*entity.Project, error)
 	ListProjectSummaries(ctx context.Context) ([]ProjectSummary, error)
@@ -82,9 +86,9 @@ type ProjectService interface {
 	DeleteTask(ctx context.Context, projectID int, uid int) error
 }
 
-// projectRepository is the minimal contract ProjectService needs — defined
-// here, at the point of use, rather than forcing every repository
-// implementation (e.g. the read-only mspdi.FileRepository) to satisfy it.
+// projectRepository — минимальный контракт, нужный ProjectService — объявлен
+// здесь, в месте использования, а не в пакете repository, чтобы не
+// заставлять каждую реализацию (например, read-only mspdi.FileRepository) ему соответствовать.
 type projectRepository interface {
 	repository.ProjectRepository
 	repository.TaskRepository
@@ -94,7 +98,7 @@ type projectService struct {
 	repo projectRepository
 }
 
-// NewProjectService builds a ProjectService backed by repo.
+// NewProjectService строит ProjectService поверх repo.
 func NewProjectService(repo projectRepository) ProjectService {
 	return &projectService{repo: repo}
 }
@@ -124,9 +128,9 @@ func (s *projectService) UpdateProject(ctx context.Context, projectID int, input
 	return s.repo.UpdateProject(ctx, projectID, input)
 }
 
-// ImportProject parses the uploaded MSPDI file (business-level decision: an
-// upload is "data", so interpreting its format belongs here, not in the
-// HTTP handler) and stores it with the form-supplied name/description.
+// ImportProject парсит загруженный MSPDI-файл (решение уровня бизнес-логики:
+// загруженный файл — это "данные", интерпретация его формата относится сюда,
+// а не в HTTP-хендлер) и сохраняет с названием/описанием из формы.
 func (s *projectService) ImportProject(ctx context.Context, name, description string, file io.Reader) (entity.Project, error) {
 	parsed, err := mspdi.Parse(file)
 	if err != nil {

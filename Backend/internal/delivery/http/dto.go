@@ -20,13 +20,16 @@ type projectDTO struct {
 	CreatedAt   string          `json:"createdAt"`
 	StartDate   string          `json:"startDate"`
 	FinishDate  string          `json:"finishDate"`
+	Closed      bool            `json:"closed"`
+	ClosedAt    string          `json:"closedAt,omitempty"`
 	Tasks       []taskDTO       `json:"tasks"`
 	Resources   []resourceDTO   `json:"resources"`
 	Assignments []assignmentDTO `json:"assignments"`
 }
 
-// projectSummaryDTO is the "Проекты" list's per-row view (usecase.ProjectSummary)
-// — no task list, since the list page only needs the derived rollup fields.
+// projectSummaryDTO — построчное представление списка «Проекты»
+// (usecase.ProjectSummary) — без списка задач, странице списка нужны
+// только вычисленные сводные поля.
 type projectSummaryDTO struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
@@ -38,6 +41,8 @@ type projectSummaryDTO struct {
 	TaskTotal      int    `json:"taskTotal"`
 	TaskDone       int    `json:"taskDone"`
 	BehindSchedule bool   `json:"behindSchedule"`
+	Closed         bool   `json:"closed"`
+	ClosedAt       string `json:"closedAt,omitempty"`
 }
 
 func newProjectSummaryDTO(s usecase.ProjectSummary) projectSummaryDTO {
@@ -52,6 +57,8 @@ func newProjectSummaryDTO(s usecase.ProjectSummary) projectSummaryDTO {
 		ComputedFinish: formatTime(s.ComputedFinish),
 		TaskTotal:      s.TaskTotal,
 		TaskDone:       s.TaskDone,
+		Closed:         s.Closed,
+		ClosedAt:       formatClosedAt(p.ClosedAt),
 		BehindSchedule: s.BehindSchedule,
 	}
 }
@@ -131,6 +138,8 @@ func newProjectDTO(p *entity.Project) projectDTO {
 		CreatedAt:   formatTime(p.CreatedAt),
 		StartDate:   formatTime(p.StartDate),
 		FinishDate:  formatTime(p.FinishDate),
+		Closed:      p.ClosedAt != nil,
+		ClosedAt:    formatClosedAt(p.ClosedAt),
 		Tasks:       tasks,
 		Resources:   resources,
 		Assignments: assignments,
@@ -245,4 +254,11 @@ func formatTime(t time.Time) string {
 		return ""
 	}
 	return t.Format(time.RFC3339)
+}
+
+func formatClosedAt(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return formatTime(*t)
 }

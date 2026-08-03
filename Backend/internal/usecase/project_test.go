@@ -85,6 +85,16 @@ func TestSummarize(t *testing.T) {
 			t.Error("BehindSchedule = true, want false (due today, not yet overdue)")
 		}
 	})
+
+	t.Run("closed is derived from ClosedAt", func(t *testing.T) {
+		if summarize(entity.Project{}, now).Closed {
+			t.Error("Closed = true, want false when ClosedAt is nil")
+		}
+		closedAt := now.AddDate(0, 0, -1)
+		if !summarize(entity.Project{ClosedAt: &closedAt}, now).Closed {
+			t.Error("Closed = false, want true when ClosedAt is set")
+		}
+	})
 }
 
 func intPtr(v int) *int { return &v }
