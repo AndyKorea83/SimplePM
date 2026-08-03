@@ -1,4 +1,4 @@
-// Mirrors src/Backend/internal/delivery/http/dto.go::projectSummaryDTO
+// Зеркалит src/Backend/internal/delivery/http/dto.go::projectSummaryDTO
 
 export type ProjectSummaryDTO = {
   id: number
@@ -11,4 +11,6 @@ export type ProjectSummaryDTO = {
   taskTotal: number
   taskDone: number
   behindSchedule: boolean
+  closed: boolean
+  closedAt?: string
 }

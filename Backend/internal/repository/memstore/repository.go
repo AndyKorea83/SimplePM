@@ -1,11 +1,11 @@
-// Package memstore holds projects in memory and supports mutating their
-// tasks. It is the stage 1/PoC stand-in for real persistence: the process
-// parses the MSPDI file once at startup (see mspdi.FileRepository) and
-// hands the result to NewRepository as the first project, after which every
-// read and write goes through the in-memory copies here — including
-// projects created or imported later through the "Проекты" page. Changes
-// live only for the process's lifetime — restarting the server reverts to
-// the seed XML file's contents (newly created/imported projects are lost).
+// Package memstore хранит проекты в памяти и поддерживает мутацию их задач.
+// Это PoC-заглушка Этапа 1 вместо настоящей персистентности: процесс
+// парсит MSPDI-файл один раз при старте (см. mspdi.FileRepository) и
+// передаёт результат в NewRepository как первый проект, после чего каждое
+// чтение и запись идёт через in-memory копии здесь — включая проекты,
+// созданные или импортированные позже через страницу «Проекты». Изменения
+// живут только в течение жизни процесса — перезапуск сервера возвращает
+// содержимое затравочного XML-файла (созданные/импортированные проекты теряются).
 package memstore
 
 import (
@@ -20,10 +20,10 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository"
 )
 
-// placeholderCreatedBy stands in for "the user who created this project"
-// until the app has real accounts/auth (stage 2) — every project created or
-// imported through this store is stamped with it, not something the create/
-// import forms ask the user to type.
+// placeholderCreatedBy — заглушка вместо "пользователя, создавшего проект",
+// пока в приложении нет реальных аккаунтов/аутентификации (Этап 2) — этим
+// значением помечается каждый проект, созданный или импортированный через
+// это хранилище; это не то, что формы создания/импорта просят ввести вручную.
 const placeholderCreatedBy = "Текущий пользователь"
 
 type projectEntry struct {
@@ -38,9 +38,9 @@ type Repository struct {
 	nextProjectID int
 }
 
-// NewRepository seeds the store with initial as project ID 1 (the MSPDI
-// file loaded at startup — see cmd/server/main.go). Further projects are
-// added via CreateProject/ImportProject.
+// NewRepository затравливает хранилище проектом initial с ID 1 (MSPDI-файл,
+// загруженный при старте — см. cmd/server/main.go). Остальные проекты
+// добавляются через CreateProject/ImportProject.
 func NewRepository(initial *entity.Project) *Repository {
 	r := &Repository{
 		projects:      make(map[int]*projectEntry),
@@ -72,10 +72,10 @@ func newProjectEntry(project entity.Project) *projectEntry {
 		nextTaskUID:       maxTaskUID + 1,
 		nextAssignmentUID: maxAssignmentUID + 1,
 	}
-	// MSPDI's own rollup (whatever MS Project computed at export time) isn't
-	// necessarily the same number our formula would produce — recompute once
-	// up front so summary percentages are correct from the first read, not
-	// just after the first mutation anywhere in the tree.
+	// Собственный роллап MSPDI (что бы MS Project ни посчитал при экспорте)
+	// не обязательно совпадает с числом по нашей формуле — пересчитываем
+	// сразу же, чтобы проценты групп были верны с первого чтения, а не
+	// только после первой мутации где-нибудь в дереве.
 	e.recomputeSummaryProgress()
 	return e
 }
@@ -110,8 +110,8 @@ func (r *Repository) ListProjects(_ context.Context) ([]entity.Project, error) {
 	for _, e := range r.projects {
 		projects = append(projects, *cloneProject(&e.project))
 	}
-	// Map iteration order is randomized in Go — without this, the "Проекты"
-	// list would reshuffle on every fetch.
+	// Порядок обхода map в Go рандомизирован — без этой сортировки список
+	// «Проекты» перемешивался бы на каждый запрос.
 	sort.Slice(projects, func(i, j int) bool { return projects[i].ID < projects[j].ID })
 	return projects, nil
 }
@@ -128,9 +128,9 @@ func (r *Repository) CreateProject(_ context.Context, input repository.CreatePro
 		Description: input.Description,
 		CreatedBy:   placeholderCreatedBy,
 		CreatedAt:   time.Now(),
-		// A brand-new project has no tasks yet — Start/FinishDate still need
-		// a valid (non-zero) value, since the frontend's Gantt grid builds
-		// its date range from these two fields when the task list is empty.
+		// У совсем нового проекта ещё нет задач — Start/FinishDate всё равно
+		// должны быть валидными (не нулевыми): фронтовая сетка Ганта строит
+		// диапазон из этих двух полей, когда список задач пуст.
 		StartDate:  today,
 		FinishDate: today,
 	}
@@ -154,6 +154,15 @@ func (r *Repository) UpdateProject(_ context.Context, projectID int, input repos
 	}
 	if input.Description != nil {
 		e.project.Description = *input.Description
+	}
+	if input.Closed != nil {
+		switch {
+		case *input.Closed && e.project.ClosedAt == nil:
+			now := time.Now()
+			e.project.ClosedAt = &now
+		case !*input.Closed:
+			e.project.ClosedAt = nil
+		}
 	}
 	return e.project, nil
 }
@@ -264,9 +273,9 @@ func (r *Repository) UpdateTask(_ context.Context, projectID int, uid int, input
 	}
 	task.Start = start
 	task.Finish = finish
-	// Only recompute the effort estimate when a date actually moved — an
-	// update that only touches e.g. PercentComplete must not silently change
-	// it too.
+	// Пересчитываем оценку трудозатрат только если дата реально изменилась —
+	// правка, затрагивающая только, например, PercentComplete, не должна
+	// попутно молча менять и её.
 	if input.Start != nil || input.Finish != nil {
 		task.Duration = businessDaysDuration(start, finish)
 	}
@@ -331,10 +340,10 @@ func (r *Repository) DeleteTask(_ context.Context, projectID int, uid int) error
 	return nil
 }
 
-// Compares calendar dates only — imported/edited tasks carry inconsistent
-// times of day (e.g. MSPDI's typical 08:00 start / 17:00 finish vs. a
-// date-only edit landing on midnight), so a same-day task must not be
-// rejected just because its finish happens to carry an earlier time value.
+// Сравнивает только календарные даты — импортированные/отредактированные
+// задачи несут разное время суток (типичный экспорт MSPDI — 08:00 старт/
+// 17:00 финиш; правка через дату — 00:00), поэтому однодневная задача не
+// должна отклоняться только из-за того, что её finish несёт более раннее время суток.
 func validateRange(start, finish time.Time) error {
 	if truncateToDate(finish).Before(truncateToDate(start)) {
 		return fmt.Errorf("finish %s is before start %s", finish, start)
@@ -344,11 +353,12 @@ func validateRange(start, finish time.Time) error {
 
 const workHoursPerDay = 8
 
-// businessDaysDuration is the effort implied by a task's calendar span: one
-// workHoursPerDay-hour day per weekday (Mon-Fri) in the inclusive
-// [start, finish] date range, weekends excluded. Used whenever Start/Finish
-// are set or changed (create, or update) so the estimate always reflects
-// the current dates instead of going stale or counting weekend days as work.
+// businessDaysDuration — трудозатраты, подразумеваемые календарным диапазоном
+// задачи: один рабочий день (workHoursPerDay часов) за каждый будний день
+// (Пн-Пт) во включающем диапазоне [start, finish], выходные исключены.
+// Используется при каждой установке/изменении Start/Finish (создание или
+// правка), чтобы оценка всегда отражала текущие даты, а не устаревала и не
+// засчитывала выходные как рабочие.
 func businessDaysDuration(start, finish time.Time) time.Duration {
 	s := truncateToDate(start)
 	f := truncateToDate(finish)
@@ -368,14 +378,14 @@ func truncateToDate(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-// recomputeSummaryProgress rolls up PercentComplete for every summary task
-// from its children, weighted by each child's effort (Duration in hours) —
-// a child with more work counts for more of the group's progress. A
-// zero-duration child (e.g. a milestone) still gets weight 1 so it
-// contributes rather than vanishing from the average entirely. Summary
-// tasks are a pure aggregate now (see UpdateTask's guard against editing
-// PercentComplete on one directly), so this must run after every mutation
-// that could change a leaf's percent, dates, or the tree shape itself.
+// recomputeSummaryProgress пересчитывает PercentComplete для каждой
+// summary-задачи по её детям, взвешивая по трудозатратам ребёнка (Duration
+// в часах) — ребёнок с большим объёмом работы весит больше в прогрессе
+// группы. Ребёнок с нулевой длительностью (например, веха) всё равно
+// получает вес 1, чтобы участвовать, а не выпадать из среднего целиком.
+// Summary-задачи теперь чистый агрегат (см. защиту UpdateTask от прямой
+// правки PercentComplete группы), поэтому это должно выполняться после
+// каждой мутации, способной изменить процент листа, даты или саму форму дерева.
 func (e *projectEntry) recomputeSummaryProgress() {
 	childrenByParent := make(map[int][]int, len(e.project.Tasks))
 	indexByUID := make(map[int]int, len(e.project.Tasks))
@@ -430,7 +440,7 @@ func (e *projectEntry) recomputeSummaryProgress() {
 	}
 }
 
-// filterDependencies drops any dependency whose predecessor UID is in dead.
+// filterDependencies убирает любую зависимость, чей UID предшественника есть в dead.
 func filterDependencies(deps []entity.Dependency, dead map[int]struct{}) []entity.Dependency {
 	filtered := make([]entity.Dependency, 0, len(deps))
 	for _, d := range deps {
@@ -441,9 +451,9 @@ func filterDependencies(deps []entity.Dependency, dead map[int]struct{}) []entit
 	return filtered
 }
 
-// validateDependencies rejects a dependency list before it is written onto
-// taskUID: unknown/self-referencing/duplicate predecessors, an out-of-range
-// Type (defends against arbitrary ints arriving from JSON), or a cycle.
+// validateDependencies отклоняет список зависимостей до его записи в taskUID:
+// неизвестный/самоссылающийся/дублирующийся предшественник, Type вне
+// диапазона (защита от произвольных int из JSON) или цикл.
 func (e *projectEntry) validateDependencies(taskUID int, deps []entity.Dependency) error {
 	seen := make(map[int]struct{}, len(deps))
 	for _, d := range deps {
@@ -467,9 +477,9 @@ func (e *projectEntry) validateDependencies(taskUID int, deps []entity.Dependenc
 	return nil
 }
 
-// hasDependencyCycle checks whether taskUID would become reachable from
-// itself if its Dependencies were replaced with proposedDeps, walking every
-// other task's *current* predecessor edges unchanged.
+// hasDependencyCycle проверяет, станет ли taskUID достижимым из самого себя,
+// если её Dependencies заменить на proposedDeps, обходя рёбра предшественников
+// всех остальных задач в их *текущем* виде.
 func (e *projectEntry) hasDependencyCycle(taskUID int, proposedDeps []entity.Dependency) bool {
 	predecessorsOf := make(map[int][]int, len(e.project.Tasks))
 	for _, t := range e.project.Tasks {
@@ -510,8 +520,8 @@ func (e *projectEntry) findTaskIndex(uid int) (int, error) {
 	return -1, fmt.Errorf("task %d not found", uid)
 }
 
-// collectDescendants returns the UIDs of every task transitively parented
-// under uid (not including uid itself).
+// collectDescendants возвращает UID каждой задачи, транзитивно вложенной
+// под uid (сам uid не включается).
 func (e *projectEntry) collectDescendants(uid int) map[int]struct{} {
 	childrenByParent := make(map[int][]int)
 	for _, t := range e.project.Tasks {
@@ -535,8 +545,8 @@ func (e *projectEntry) collectDescendants(uid int) map[int]struct{} {
 	return descendants
 }
 
-// setAssignments replaces every assignment for taskUID with one per given
-// resource UID.
+// setAssignments заменяет все назначения для taskUID на по одному на каждый
+// переданный UID ресурса.
 func (e *projectEntry) setAssignments(taskUID int, resourceUIDs []int) {
 	filtered := make([]entity.Assignment, 0, len(e.project.Assignments))
 	for _, a := range e.project.Assignments {

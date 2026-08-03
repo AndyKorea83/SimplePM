@@ -7,7 +7,7 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
 )
 
-// CreateTaskInput describes a new task. ParentUID nil means top-level.
+// CreateTaskInput описывает новую задачу. ParentUID == nil — задача верхнего уровня.
 type CreateTaskInput struct {
 	Name                 string
 	ParentUID            *int
@@ -20,7 +20,7 @@ type CreateTaskInput struct {
 	Dependencies         []entity.Dependency
 }
 
-// UpdateTaskInput is a partial update: nil fields are left unchanged.
+// UpdateTaskInput — частичное обновление: nil-поля остаются без изменений.
 type UpdateTaskInput struct {
 	Name                 *string
 	Start                *time.Time
@@ -31,10 +31,10 @@ type UpdateTaskInput struct {
 	Dependencies         *[]entity.Dependency
 }
 
-// TaskRepository mutates tasks within a given project. Only an in-memory-
-// backed ProjectRepository (see the memstore package) implements this — the
-// MSPDI file repository is read-only and used just for the initial load at
-// startup, per the roadmap's stage 1/PoC scope.
+// TaskRepository мутирует задачи внутри заданного проекта. Реализует его
+// только in-memory ProjectRepository (см. пакет memstore) — файловый
+// mspdi-репозиторий только для чтения и используется лишь для начальной
+// загрузки при старте, согласно PoC-скоупу Этапа 1.
 type TaskRepository interface {
 	CreateTask(ctx context.Context, projectID int, input CreateTaskInput) (entity.Task, error)
 	UpdateTask(ctx context.Context, projectID int, uid int, input UpdateTaskInput) (entity.Task, error)

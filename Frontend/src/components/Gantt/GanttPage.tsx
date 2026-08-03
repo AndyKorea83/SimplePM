@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { PageShell } from '../ui/PageShell'
-import { SectionTabs } from '../SectionTabs/SectionTabs'
 import { createTask, deleteTask, fetchProject, updateTask } from './api'
 import { buildTaskTree, filterTaskTree, flattenVisible } from './buildTaskTree'
 import { formatDateRange } from './dateGrid'
-import { GANTT_TABS } from './ganttTabs'
+import { GanttSectionHeader } from './GanttSectionHeader'
 import { LAST_PROJECT_STORAGE_KEY } from './GanttDiagramsRedirect'
 import { BottomStatusBar } from './BottomStatusBar'
 import { GanttHeader } from './GanttHeader'
@@ -375,9 +374,7 @@ export function GanttPage() {
   if (error) {
     return (
       <PageShell>
-        <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
-          <SectionTabs tabs={GANTT_TABS} />
-        </div>
+        <GanttSectionHeader />
         <div className="flex flex-1 items-center justify-center">
           <p className="text-[14px] text-[#d93333]">Не удалось загрузить проект: {error}</p>
         </div>
@@ -388,9 +385,7 @@ export function GanttPage() {
   if (!project) {
     return (
       <PageShell>
-        <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
-          <SectionTabs tabs={GANTT_TABS} />
-        </div>
+        <GanttSectionHeader />
         <div className="flex flex-1 items-center justify-center">
           <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>
         </div>
@@ -463,9 +458,7 @@ export function GanttPage() {
 
   return (
     <PageShell>
-      <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
-        <SectionTabs tabs={GANTT_TABS} />
-      </div>
+      <GanttSectionHeader />
       <GanttHeader
         title={project.title || project.name}
         dateRangeLabel={formatDateRange(rangeStart, rangeEnd)}

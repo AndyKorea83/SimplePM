@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-// TestWriteParseRoundTrip verifies Write produces a document Parse can read
-// back into an equivalent project — the property CreateProject/Export/Import
-// actually depends on, since Write must reconstruct document order from
-// ParentUID (see orderedByHierarchy) for the hierarchy to survive.
+// TestWriteParseRoundTrip проверяет, что Write производит документ, который
+// Parse читает обратно в эквивалентный проект — именно это свойство и
+// нужно экспорту/импорту, поскольку Write обязан восстановить порядок
+// документа из ParentUID (см. orderedByHierarchy), иначе иерархия не переживёт round-trip.
 func TestWriteParseRoundTrip(t *testing.T) {
 	f, err := os.Open("testdata/sample_project.xml")
 	if err != nil {

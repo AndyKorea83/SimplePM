@@ -1,41 +1,12 @@
-import toggleOffIcon from '../../assets/icons/toggle-off.svg'
-import toggleTrackIcon from '../../assets/icons/toggle-track.svg'
-import toggleKnobIcon from '../../assets/icons/toggle-knob.svg'
-import { useTheme } from '../../theme/ThemeContext'
 import { NAV_ROUTES } from '../../navigation'
 import { PageShell } from '../ui/PageShell'
 import { SectionTabs } from '../SectionTabs/SectionTabs'
 import { SectionPlaceholder } from '../SectionPlaceholder/SectionPlaceholder'
+import { ThemeToggle } from '../ui/ThemeToggle'
 
 // Единый источник вкладок раздела (Календарь/Учет времени/Трудозатраты) —
 // те же данные, что сайдбар использует для пункта "Время".
 const TIME_TABS = NAV_ROUTES.find((route) => route.key === 'time')!.children!
-
-// Figma (189:3450): светлая тема — оранжевый трек + солнце (toggle-track/
-// toggle-knob), тёмная — отдельный цельный ассет (серый трек + луна), а не
-// затемнённая/сдвинутая версия светлого.
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme()
-  const isLight = theme === 'light'
-  return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className="relative h-5 w-[47px] shrink-0 cursor-pointer"
-      aria-pressed={isLight}
-      aria-label="Переключить тему"
-    >
-      {isLight ? (
-        <>
-          <img src={toggleTrackIcon} alt="" className="absolute inset-0 size-full" />
-          <img src={toggleKnobIcon} alt="" className="absolute bottom-[2px] right-[2px] h-4 w-[42px]" />
-        </>
-      ) : (
-        <img src={toggleOffIcon} alt="" className="absolute inset-0 size-full" />
-      )}
-    </button>
-  )
-}
 
 // Верхняя строка шапки раздела: вкладки (реальные ссылки, а не просто
 // отображение активной) плюс переключатель темы.

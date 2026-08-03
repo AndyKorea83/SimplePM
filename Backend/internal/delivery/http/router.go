@@ -10,14 +10,14 @@ import (
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/usecase"
 )
 
-// NewRouter builds the application's chi router.
+// NewRouter строит chi-роутер приложения.
 func NewRouter(projectService usecase.ProjectService, timesheetService usecase.TimesheetService) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		// Dev frontend runs on its own Vite port; allow it during stage 1.
+		// Dev-фронтенд работает на своём порту Vite; разрешаем его на Этапе 1.
 		AllowedOrigins: []string{"http://localhost:*"},
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowedHeaders: []string{"Content-Type"},

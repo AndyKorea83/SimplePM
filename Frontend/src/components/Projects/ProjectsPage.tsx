@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react'
 import { PageShell } from '../ui/PageShell'
 import { Button } from '../ui/Button'
-import { SectionTabs } from '../SectionTabs/SectionTabs'
-import { GANTT_TABS } from '../Gantt/ganttTabs'
-import { createProject, fetchProjectSummaries, importProject, updateProject } from './api'
+import { SegmentedControl, SegmentedOption } from '../ui/SegmentedControl'
+import { GanttSectionHeader } from '../Gantt/GanttSectionHeader'
+import { createProject, fetchProjectSummaries, importProject, setProjectClosed, updateProject } from './api'
 import { ImportProjectForm, type ImportProjectValues } from './ImportProjectForm'
 import { ProjectCard } from './ProjectCard'
 import { ProjectForm, type ProjectFormValues } from './ProjectForm'
 import type { ProjectSummaryDTO } from './types'
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; project: ProjectSummaryDTO } | { mode: 'import' } | null
+type StatusFilter = 'open' | 'closed'
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummaryDTO[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('open')
 
   const refetch = () => fetchProjectSummaries().then(setProjects).catch((err: Error) => setError(err.message))
 
@@ -40,14 +42,29 @@ export function ProjectsPage() {
     closeModal()
   }
 
+  const handleToggleClosed = async (project: ProjectSummaryDTO) => {
+    await setProjectClosed(project.id, !project.closed)
+    await refetch()
+  }
+
+  const visibleProjects = projects?.filter((p) => (statusFilter === 'closed' ? p.closed : !p.closed)) ?? null
+
   return (
     <PageShell>
-      <div className="flex w-full items-start border-b border-[var(--border)] px-4 pb-0 pt-4">
-        <SectionTabs tabs={GANTT_TABS} />
-      </div>
+      <GanttSectionHeader />
 
       <div className="flex items-center justify-between px-4 py-3">
-        <p className="text-[18px] font-bold text-[var(--text-primary)]">Проекты</p>
+        <div className="flex items-center gap-4">
+          <p className="text-[18px] font-bold text-[var(--text-primary)]">Проекты</p>
+          <SegmentedControl>
+            <SegmentedOption active={statusFilter === 'open'} onClick={() => setStatusFilter('open')} className="px-3 py-[6px] text-[12px]">
+              Открытые
+            </SegmentedOption>
+            <SegmentedOption active={statusFilter === 'closed'} onClick={() => setStatusFilter('closed')} className="px-3 py-[6px] text-[12px]">
+              Закрытые
+            </SegmentedOption>
+          </SegmentedControl>
+        </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setModal({ mode: 'import' })}>
             Импортировать
@@ -60,14 +77,23 @@ export function ProjectsPage() {
 
       <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
         {error && <p className="text-[14px] text-[#d93333]">Не удалось загрузить проекты: {error}</p>}
-        {!error && !projects && <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>}
-        {!error && projects && projects.length === 0 && (
-          <p className="text-[14px] text-[#94a3b8]">Пока нет ни одного проекта — создайте новый или импортируйте из XML.</p>
+        {!error && !visibleProjects && <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>}
+        {!error && visibleProjects && visibleProjects.length === 0 && (
+          <p className="text-[14px] text-[#94a3b8]">
+            {statusFilter === 'closed'
+              ? 'Нет закрытых проектов.'
+              : 'Пока нет ни одного проекта — создайте новый или импортируйте из XML.'}
+          </p>
         )}
-        {projects && projects.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} onEdit={() => setModal({ mode: 'edit', project })} />
+        {visibleProjects && visibleProjects.length > 0 && (
+          <div className="flex max-w-[960px] flex-col gap-3">
+            {visibleProjects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onEdit={() => setModal({ mode: 'edit', project })}
+                onToggleClosed={() => handleToggleClosed(project)}
+              />
             ))}
           </div>
         )}

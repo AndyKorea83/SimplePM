@@ -609,8 +609,8 @@ func TestCreateProject_IsolatedFromSeedProject(t *testing.T) {
 		t.Error("CreatedBy is empty, want the placeholder stand-in")
 	}
 
-	// A task created in the new project must not appear in, or mutate, the
-	// seed project.
+	// Задача, созданная в новом проекте, не должна появляться в сидовом
+	// проекте и тем более его мутировать.
 	if _, err := repo.CreateTask(ctx, created.ID, repository.CreateTaskInput{
 		Name: "Only in the new project", Start: time.Now(), Finish: time.Now(),
 	}); err != nil {
@@ -655,6 +655,42 @@ func TestUpdateProject_EditsNameAndDescription(t *testing.T) {
 	}
 }
 
+func TestUpdateProject_CloseAndReopen(t *testing.T) {
+	repo := NewRepository(testProject())
+	ctx := context.Background()
+
+	closed := true
+	updated, err := repo.UpdateProject(ctx, 1, repository.UpdateProjectInput{Closed: &closed})
+	if err != nil {
+		t.Fatalf("UpdateProject (закрыть): %v", err)
+	}
+	if updated.ClosedAt == nil {
+		t.Fatal("ClosedAt = nil, want установленное значение после закрытия")
+	}
+
+	// Повторное закрытие уже закрытого проекта не должно сдвигать ClosedAt.
+	firstClosedAt := *updated.ClosedAt
+	if _, err := repo.UpdateProject(ctx, 1, repository.UpdateProjectInput{Closed: &closed}); err != nil {
+		t.Fatalf("UpdateProject (повторное закрытие): %v", err)
+	}
+	reclosed, err := repo.GetProject(ctx, 1)
+	if err != nil {
+		t.Fatalf("GetProject: %v", err)
+	}
+	if reclosed.ClosedAt == nil || !reclosed.ClosedAt.Equal(firstClosedAt) {
+		t.Errorf("ClosedAt изменился при повторном закрытии: %v, want %v", reclosed.ClosedAt, firstClosedAt)
+	}
+
+	opened := false
+	reopened, err := repo.UpdateProject(ctx, 1, repository.UpdateProjectInput{Closed: &opened})
+	if err != nil {
+		t.Fatalf("UpdateProject (открыть): %v", err)
+	}
+	if reopened.ClosedAt != nil {
+		t.Errorf("ClosedAt = %v, want nil после открытия", reopened.ClosedAt)
+	}
+}
+
 func TestListProjects_IncludesAllCreatedProjects(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
@@ -672,9 +708,9 @@ func TestListProjects_IncludesAllCreatedProjects(t *testing.T) {
 	}
 }
 
-// Go's map iteration order is randomized — without an explicit sort in
-// ListProjects, the "Проекты" page would reshuffle on every fetch (found via
-// manual browser testing, not a hypothetical).
+// Порядок обхода map в Go рандомизирован — без явной сортировки в
+// ListProjects страница «Проекты» перемешивалась бы на каждый запрос
+// (найдено ручным тестированием в браузере, не гипотетический баг).
 func TestListProjects_OrderedByID(t *testing.T) {
 	repo := NewRepository(testProject())
 	ctx := context.Background()
@@ -725,8 +761,8 @@ func TestImportProject_OverridesMetadataFromForm(t *testing.T) {
 		t.Fatalf("len(Tasks) = %d, want 1 (from the imported file)", len(project.Tasks))
 	}
 
-	// The imported project's task UIDs start fresh from the file — a
-	// follow-up CreateTask must not collide with them.
+	// UID задач импортированного проекта начинаются заново из файла —
+	// последующий CreateTask не должен с ними сталкиваться.
 	created, err := repo.CreateTask(ctx, project.ID, repository.CreateTaskInput{
 		Name: "New in imported project", Start: time.Now(), Finish: time.Now(),
 	})
