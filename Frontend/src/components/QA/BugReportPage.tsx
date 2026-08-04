@@ -80,12 +80,17 @@ export function BugReportPage() {
   return (
     <PageShell>
       <QaSectionHeader />
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
+      <div className="flex min-h-0 flex-1 flex-col items-end overflow-y-auto p-4">
         {error && <p className="text-[14px] text-[#d93333]">Не удалось загрузить отчёт: {error}</p>}
         {!error && !groups && <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>}
-        {groups?.map((group) => (
-          <PersonSection key={group.assigneeName} group={group} onBugClick={setHistoryBugUid} />
-        ))}
+        {/* Таблица не растягивается на всю ширину страницы — фиксированная
+            ширина по сумме колонок (340+120+110+110+120+120), выровнена по
+            правому краю (решение пользователя по итогам ревью). */}
+        <div className="flex w-full max-w-[920px] flex-col gap-6">
+          {groups?.map((group) => (
+            <PersonSection key={group.assigneeName} group={group} onBugClick={setHistoryBugUid} />
+          ))}
+        </div>
       </div>
       {historyBugUid !== null && <BugHistoryModal bugUid={historyBugUid} onClose={() => setHistoryBugUid(null)} />}
     </PageShell>
