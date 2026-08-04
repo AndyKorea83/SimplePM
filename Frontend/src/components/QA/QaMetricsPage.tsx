@@ -188,13 +188,19 @@ export function QaMetricsPage() {
                         {entry.reporterName}
                       </span>
                       <div className="flex h-[10px] flex-1 overflow-hidden rounded-full bg-[#f1f5f9] dark:bg-[#1c1c1e]">
-                        {SEVERITY_ORDER.map((sev) => {
-                          const count = entry.bySeverity[sev] ?? 0
-                          const pct = entry.total > 0 ? (count / entry.total) * 100 : 0
-                          return count > 0 ? (
-                            <div key={sev} style={{ width: `${pct}%`, backgroundColor: SEVERITY_COLORS[sev].bg }} title={`${sev}: ${count}`} />
-                          ) : null
-                        })}
+                        {SEVERITY_ORDER.map((sev) => ({ sev, count: entry.bySeverity[sev] ?? 0 }))
+                          .filter((s) => s.count > 0)
+                          .map((s, i) => (
+                            <div
+                              key={s.sev}
+                              className={i > 0 ? 'border-l-2 border-[var(--surface)]' : undefined}
+                              style={{
+                                width: `${entry.total > 0 ? (s.count / entry.total) * 100 : 0}%`,
+                                backgroundColor: SEVERITY_COLORS[s.sev].bg,
+                              }}
+                              title={`${s.sev}: ${s.count}`}
+                            />
+                          ))}
                       </div>
                       <span className="w-[24px] shrink-0 text-right text-[13px] font-bold text-[var(--text-primary)]">{entry.total}</span>
                     </div>
