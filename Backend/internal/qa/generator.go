@@ -5,7 +5,9 @@
 package qa
 
 import (
+	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/entity"
@@ -18,14 +20,52 @@ var (
 	RangeEnd   = time.Date(2026, time.July, 31, 0, 0, 0, 0, time.UTC)
 )
 
+// placeholderActor — тот же принцип, что memstore.placeholderCreatedBy: в
+// приложении нет аутентификации, поэтому "кто передвинул карточку" на
+// Kanban-доске — заглушка, а не реальный пользователь.
+const placeholderActor = "Текущий пользователь"
+
+// Dataset — не только результат генерации, но и рабочее in-memory
+// хранилище на весь жизненный цикл процесса (тот же принцип, что
+// memstore.Repository для проекта): перетаскивание карточки на
+// Kanban-доске мутирует Bugs/History через UpdateBugStatus, а не только
+// читает их.
 type Dataset struct {
+	mu      sync.RWMutex
 	Bugs    []entity.Bug
 	History []entity.BugHistoryEntry
 }
 
 // Data удовлетворяет qaDataset-интерфейсу usecase.
 func (d *Dataset) Data() ([]entity.Bug, []entity.BugHistoryEntry) {
-	return d.Bugs, d.History
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return append([]entity.Bug(nil), d.Bugs...), append([]entity.BugHistoryEntry(nil), d.History...)
+}
+
+// UpdateBugStatus передвигает баг в новый статус (перетаскивание карточки
+// на Kanban-доске) и добавляет соответствующую запись в историю.
+func (d *Dataset) UpdateBugStatus(bugUID int, newStatus entity.BugStatus) (entity.Bug, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	for i := range d.Bugs {
+		if d.Bugs[i].UID != bugUID {
+			continue
+		}
+		oldStatus := d.Bugs[i].Status
+		d.Bugs[i].Status = newStatus
+		d.History = append(d.History, entity.BugHistoryEntry{
+			BugUID:     bugUID,
+			Kind:       entity.HistoryStatusChange,
+			At:         time.Now(),
+			ByName:     placeholderActor,
+			FromStatus: oldStatus,
+			ToStatus:   newStatus,
+		})
+		return d.Bugs[i], nil
+	}
+	return entity.Bug{}, fmt.Errorf("bug %d not found", bugUID)
 }
 
 // Исполнители (разработчики, чинят баги) и репортеры (QA-инженеры, находят
