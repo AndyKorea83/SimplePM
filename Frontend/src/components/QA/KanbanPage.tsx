@@ -16,7 +16,14 @@ const STATUS_BY_COLUMN_KEY: Record<string, string> = {
   'qa-in-progress': 'QA in progress',
 }
 
-export function KanbanPage() {
+type KanbanPageProps = {
+  // Явный проп, а не жёстко зашитое поведение — эта же доска (с другими
+  // колонками) понадобится ещё в одном разделе, и там перетаскивание может
+  // быть нужно или не нужно независимо от QA.
+  allowDragAndDrop: boolean
+}
+
+export function KanbanPage({ allowDragAndDrop }: KanbanPageProps) {
   const [columns, setColumns] = useState<KanbanColumnDTO[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [historyBugUid, setHistoryBugUid] = useState<number | null>(null)
@@ -50,7 +57,7 @@ export function KanbanPage() {
               <KanbanColumn
                 key={column.key}
                 column={column}
-                acceptsDrop={column.key !== 'blocked-paused'}
+                acceptsDrop={allowDragAndDrop && column.key !== 'blocked-paused'}
                 onCardClick={setHistoryBugUid}
                 onDropBug={(bugUid) => handleDropBug(column.key, bugUid)}
               />
