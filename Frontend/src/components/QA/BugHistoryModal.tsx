@@ -33,7 +33,7 @@ export function BugHistoryModal({ bugUid, onClose }: BugHistoryModalProps) {
   }, [bugUid])
 
   return (
-    <Modal widthClassName="w-[480px]">
+    <Modal widthClassName="w-[600px]">
       <h2 className="text-[18px] font-bold text-[var(--text-primary)]">История смены статуса</h2>
 
       {view && (
@@ -47,10 +47,10 @@ export function BugHistoryModal({ bugUid, onClose }: BugHistoryModalProps) {
 
       {view && (
         <div className="relative flex max-h-[360px] w-full flex-col gap-4 overflow-y-auto py-2">
-          <div className="absolute bottom-2 left-[104px] top-2 w-px bg-[var(--border)]" />
+          <div className="absolute bottom-2 left-[144px] top-2 w-px bg-[var(--border)]" />
           {view.entries.map((entry, i) => (
             <div key={i} className="flex w-full gap-4">
-              <div className="flex w-[100px] shrink-0 flex-col items-end text-right">
+              <div className="flex w-[140px] shrink-0 flex-col items-end whitespace-nowrap text-right">
                 <span className="text-[12px] text-[var(--text-primary)]">{formatDateTime(entry.at)}</span>
                 <span className="text-[10px] text-[var(--text-secondary)]">{entry.byName}</span>
               </div>
