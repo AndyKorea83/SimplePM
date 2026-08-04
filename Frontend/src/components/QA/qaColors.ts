@@ -22,15 +22,17 @@ export function statusPillColor(status: string): ColorPair {
 }
 
 // Критичность (Severity) — по возрастанию: trivial < minor < major <
-// critical < blocker. critical не встречался в макете напрямую (только
-// Important/Critical для важности) — цвет проинтерполирован между major и
-// blocker, а не скопирован откуда-то вслепую.
+// critical < blocker. Цвета — официальные именованные токены дизайн-системы
+// (severity/blocker, severity/critical и т.д.), найдены на карточке
+// "Распределение по критичности" страницы метрик (node 309:8140) — это
+// авторитетный источник, отменяет более ранние цвета плашек, подобранные
+// по аналогии на других макетах (kanban-card/bug-report-table).
 export const SEVERITY_COLORS: Record<string, ColorPair> = {
-  trivial: { bg: '#f3f4f6', text: '#374151' },
-  minor: { bg: '#f3f4f6', text: '#374151' },
-  major: { bg: '#f59e0b', text: '#92400e' },
-  critical: { bg: '#fb923c', text: '#7c2d12' },
-  blocker: { bg: '#fee2e2', text: '#991b1b' },
+  blocker: { bg: '#E11D21', text: '#ffffff' },
+  critical: { bg: '#9E0B06', text: '#ffffff' },
+  major: { bg: '#731705', text: '#ffffff' },
+  minor: { bg: '#611F11', text: '#ffffff' },
+  trivial: { bg: '#381E1B', text: '#ffffff' },
 }
 
 export const SEVERITY_ORDER = ['blocker', 'critical', 'major', 'minor', 'trivial'] as const

@@ -47,7 +47,10 @@ function pageForGanttChild(childKey: string) {
 function pageForQaChild(childKey: string) {
   switch (childKey) {
     case 'qa-board':
-      return <KanbanPage />
+      // Перетаскивание карточек здесь отключено (явное решение пользователя) —
+      // эта же доска понадобится ещё в одном разделе с другими колонками, и
+      // там drag-and-drop может быть уместен независимо от QA.
+      return <KanbanPage allowDragAndDrop={false} />
     case 'bug-report':
       return <BugReportPage />
     case 'qa-metrics':

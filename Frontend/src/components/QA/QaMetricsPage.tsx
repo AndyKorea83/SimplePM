@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PageShell } from '../ui/PageShell'
-import { Select } from '../ui/Input'
+import { MonthPicker, buildMonthOptions, type MonthOption } from '../ui/MonthPicker'
 import { QaSectionHeader } from './QaSectionHeader'
 import { BugHistoryModal } from './BugHistoryModal'
 import { fetchQAMetrics } from './api'
@@ -15,18 +15,11 @@ function monthKey(year: number, month: number) {
 
 // Диапазон совпадает с internal/qa.RangeStart/RangeEnd на бэкенде (Гантту
 // свой диапазон, Календарю свой — тот же принцип независимых предметных
-// областей, см. architect.md).
-const RANGE_MONTHS: { year: number; month: number }[] = (() => {
-  const months = []
-  for (let y = 2025, m = 8; y < 2026 || m <= 7; m++) {
-    if (m > 12) {
-      m = 1
-      y++
-    }
-    months.push({ year: y, month: m })
-  }
-  return months
-})()
+// областей, см. architect.md). Контрол выбора месяца — тот же, что в
+// Календаре (ui/MonthPicker, issue #59/#71), со своим диапазоном.
+const QA_RANGE_START: MonthOption = { year: 2025, month: 8 }
+const QA_RANGE_END: MonthOption = { year: 2026, month: 7 }
+const RANGE_MONTHS = buildMonthOptions(QA_RANGE_START, QA_RANGE_END)
 
 function SeverityBar({ bySeverity, total }: { bySeverity: Record<string, number>; total: number }) {
   return (
@@ -94,24 +87,20 @@ export function QaMetricsPage() {
     <PageShell>
       <QaSectionHeader />
       <div className="flex items-center gap-3 px-4 py-3">
-        <Select
-          value={monthKey(year, month)}
-          onChange={(e) => {
-            const [y, m] = e.target.value.split('-').map(Number)
-            setYear(y)
-            setMonth(m)
+        <MonthPicker
+          value={{ year, month }}
+          onChange={(v) => {
+            setYear(v.year)
+            setMonth(v.month)
           }}
-          className="w-[160px]"
-        >
-          {RANGE_MONTHS.map((p) => (
-            <option key={monthKey(p.year, p.month)} value={monthKey(p.year, p.month)}>
-              {MONTH_LABELS[p.month - 1]} {p.year}
-            </option>
-          ))}
-        </Select>
+          rangeStart={QA_RANGE_START}
+          rangeEnd={QA_RANGE_END}
+        />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      {/* Не растягиваем на всю ширину — ориентир на экран Full HD (решение
+          пользователя по итогам ревью). */}
+      <div className="min-h-0 max-w-[1600px] flex-1 overflow-y-auto p-4">
         {error && <p className="text-[14px] text-[#d93333]">Не удалось загрузить метрики: {error}</p>}
         {!error && !metrics && <p className="text-[14px] text-[#94a3b8]">Загрузка…</p>}
 
