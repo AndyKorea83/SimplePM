@@ -41,27 +41,46 @@ function SeverityBar({ bySeverity, total }: { bySeverity: Record<string, number>
   )
 }
 
+// Высота, отведённая под сам столбец (без числа и подписи месяца) — общее
+// число багов месяца рисуется отдельной строкой сразу над столбцом и растёт
+// вместе с ним, а не висит фиксированно в верху графика.
+const BAR_MAX_HEIGHT = 160
+
 function DistributionChart({ months }: { months: MonthlySeverityDTO[] }) {
   const maxTotal = Math.max(1, ...months.map((m) => m.total))
   return (
     <div className="flex h-[220px] items-end gap-2">
-      {months.map((m) => (
-        <div key={monthKey(m.year, m.month)} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-          <span className="text-[11px] font-semibold text-[var(--text-primary)]">{m.total || ''}</span>
-          <div className="flex w-full flex-1 flex-col justify-end overflow-hidden rounded-t">
-            {[...SEVERITY_ORDER].reverse().map((sev) => {
-              const count = m.bySeverity[sev] ?? 0
-              const heightPct = (count / maxTotal) * 100
-              return count > 0 ? (
-                <div key={sev} style={{ height: `${heightPct}%`, backgroundColor: SEVERITY_COLORS[sev].bg }} title={`${sev}: ${count}`} />
-              ) : null
-            })}
+      {months.map((m) => {
+        const barAreaHeight = Math.round((m.total / maxTotal) * BAR_MAX_HEIGHT)
+        // Только реально присутствующие типы багов — иначе нулевые сегменты
+        // сбивали бы нумерацию разделителей между соседними столбцами.
+        const segments = [...SEVERITY_ORDER]
+          .reverse()
+          .map((sev) => ({ sev, count: m.bySeverity[sev] ?? 0 }))
+          .filter((s) => s.count > 0)
+        return (
+          <div key={monthKey(m.year, m.month)} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+            {m.total > 0 && (
+              <div className="flex w-full flex-col items-center" style={{ height: `${barAreaHeight}px` }}>
+                <span className="shrink-0 pb-1 text-[11px] font-semibold text-[var(--text-primary)]">{m.total}</span>
+                <div className="flex w-full flex-1 flex-col justify-end overflow-hidden rounded-t">
+                  {segments.map((s, i) => (
+                    <div
+                      key={s.sev}
+                      className={i > 0 ? 'border-t-2 border-[var(--surface)]' : undefined}
+                      style={{ height: `${(s.count / m.total) * 100}%`, backgroundColor: SEVERITY_COLORS[s.sev].bg }}
+                      title={`${s.sev}: ${s.count}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            <span className="text-[10px] text-[var(--text-secondary)]">
+              {MONTH_LABELS[m.month - 1]} {String(m.year).slice(2)}
+            </span>
           </div>
-          <span className="text-[10px] text-[var(--text-secondary)]">
-            {MONTH_LABELS[m.month - 1]} {String(m.year).slice(2)}
-          </span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
