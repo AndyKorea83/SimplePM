@@ -5,6 +5,9 @@ import { TabbedSectionPage } from './components/SectionTabs/SectionTabs'
 import { GanttPage } from './components/Gantt/GanttPage'
 import { GanttDiagramsRedirect } from './components/Gantt/GanttDiagramsRedirect'
 import { ProjectsPage } from './components/Projects/ProjectsPage'
+import { KanbanPage } from './components/QA/KanbanPage'
+import { BugReportPage } from './components/QA/BugReportPage'
+import { QaMetricsPage } from './components/QA/QaMetricsPage'
 import { CalendarPage } from './components/Calendar/CalendarPage'
 import { LaborCostsPage } from './components/Calendar/LaborCostsPage'
 import { TimeGroupPlaceholderPage } from './components/Calendar/TimeSectionHeader'
@@ -41,6 +44,19 @@ function pageForGanttChild(childKey: string) {
 // у третьей — общая шапка через TimeGroupPlaceholderPage. У остальных групп
 // (Задачи/Команда/QA) страниц пока нет — все их вкладки идут через заглушку
 // TabbedSectionPage.
+function pageForQaChild(childKey: string) {
+  switch (childKey) {
+    case 'qa-board':
+      return <KanbanPage />
+    case 'bug-report':
+      return <BugReportPage />
+    case 'qa-metrics':
+      return <QaMetricsPage />
+    default:
+      return undefined
+  }
+}
+
 function routesForGroup(route: NavRoute) {
   if (route.key === 'time') {
     return route.children!.map((child) => (
@@ -58,6 +74,15 @@ function routesForGroup(route: NavRoute) {
       )),
       <Route key="gantt-diagram-detail" path="/gantt/diagrams/:projectId" element={<GanttPage />} />,
     ]
+  }
+  if (route.key === 'qa') {
+    return route.children!.map((child) => (
+      <Route
+        key={child.key}
+        path={child.path}
+        element={pageForQaChild(child.key) ?? <TabbedSectionPage tabs={route.children!} />}
+      />
+    ))
   }
   return route.children!.map((child) => (
     <Route key={child.key} path={child.path} element={<TabbedSectionPage tabs={route.children!} />} />
