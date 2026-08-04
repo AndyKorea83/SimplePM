@@ -11,7 +11,7 @@ import (
 )
 
 // NewRouter строит chi-роутер приложения.
-func NewRouter(projectService usecase.ProjectService, timesheetService usecase.TimesheetService) http.Handler {
+func NewRouter(projectService usecase.ProjectService, timesheetService usecase.TimesheetService, qaService usecase.QAService) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -30,6 +30,7 @@ func NewRouter(projectService usecase.ProjectService, timesheetService usecase.T
 	projectHandler := NewProjectHandler(projectService)
 	taskHandler := NewTaskHandler(projectService)
 	timesheetHandler := NewTimesheetHandler(timesheetService)
+	qaHandler := NewQAHandler(qaService)
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/projects", func(r chi.Router) {
 			r.Get("/", projectHandler.ListProjects)
@@ -48,6 +49,15 @@ func NewRouter(projectService usecase.ProjectService, timesheetService usecase.T
 		})
 		r.Get("/timesheet", timesheetHandler.GetMonth)
 		r.Get("/timesheet/export", timesheetHandler.ExportLaborCosts)
+		r.Route("/qa", func(r chi.Router) {
+			r.Get("/kanban", qaHandler.ListKanban)
+			r.Get("/bug-report", qaHandler.ListBugReport)
+			r.Get("/metrics", qaHandler.GetMetrics)
+			r.Route("/bugs/{uid}", func(r chi.Router) {
+				r.Patch("/", qaHandler.UpdateBugStatus)
+				r.Get("/history", qaHandler.GetBugHistory)
+			})
+		})
 	})
 
 	return r

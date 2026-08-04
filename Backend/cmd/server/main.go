@@ -8,6 +8,7 @@ import (
 	"os"
 
 	deliveryhttp "github.com/AndyKorea83/SimplePM/src/Backend/internal/delivery/http"
+	"github.com/AndyKorea83/SimplePM/src/Backend/internal/qa"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository/memstore"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/repository/mspdi"
 	"github.com/AndyKorea83/SimplePM/src/Backend/internal/timesheet"
@@ -36,7 +37,11 @@ func main() {
 	// a synthetic dataset generated once at startup.
 	timesheetService := usecase.NewTimesheetService(timesheet.Generate(), timesheet.RangeStart, timesheet.RangeEnd)
 
-	router := deliveryhttp.NewRouter(service, timesheetService)
+	// Раздел QA (Kanban/отчёт по багам/история/метрики) — та же схема, что
+	// timesheet: синтетические данные генерируются один раз при старте.
+	qaService := usecase.NewQAService(qa.Generate(), qa.RangeStart, qa.RangeEnd)
+
+	router := deliveryhttp.NewRouter(service, timesheetService, qaService)
 
 	log.Printf("listening on %s (project data: %s)", addr, xmlPath)
 	if err := http.ListenAndServe(addr, router); err != nil {

@@ -58,9 +58,13 @@ export const NAV_ROUTES: NavRoute[] = [
   {
     key: 'qa',
     label: 'QA',
+    // Порядок и подписи — как в Figma (issue #69): "Задачи тестирования"
+    // (Kanban-доска) идёт первой и становится вкладкой по умолчанию для
+    // клика по "QA" в сайдбаре — тот же приём, что и у "Гантт" (см.
+    // navigation.ts выше, порядок значим для children[0]).
     children: [
+      { key: 'qa-board', label: 'Задачи тестирования', path: '/qa/board' },
       { key: 'bug-report', label: 'Отчет по багам', path: '/qa/bugs' },
-      { key: 'qa-board', label: 'Доска', path: '/qa/board' },
       { key: 'qa-metrics', label: 'Метрики', path: '/qa/metrics' },
     ],
   },
